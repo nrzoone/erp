@@ -37,7 +37,6 @@ const CuttingPanel = ({
   setActivePanel,
   t,
   logAction,
-  SafeText,
 }) => {
   const [activeTab, setActiveTab] = useState("Incoming Orders"); // Incoming Orders, Cutting Queue, History
 
@@ -50,31 +49,29 @@ const CuttingPanel = ({
     if (!lotNo) return;
 
     setMasterData(prev => {
-        const color = order.color || 'MIX';
-        
-        // Map each size from the order to a separate cutting stock entry
-        const newEntries = (order.sizes || []).map((s, idx) => ({
-            id: `B2B_${order.id}_${idx}`,
+        // We use the already deducted fabric from productionRequests submission
+        // But we add it to cuttingStock as a live lot
+        const newLot = {
+            id: `B2B_${order.id}`,
             lotNo,
             date: new Date().toLocaleDateString("en-GB"),
             design: order.design,
             client: order.client,
-            color: color,
-            size: s.size,
-            borka: Number(s.borka || 0),
-            hijab: Number(s.hijab || 0),
-            fabricGoj: idx === 0 ? (order.fabricGoj || 0) : 0, // Only put fabric on the first row of the lot
-            status: 'Ready', // Important: status 'Ready' makes it available for FactoryPanel
+            color: 'MIX',
+            borka: order.totalBorka || 0,
+            hijab: order.totalHijab || 0,
+            fabricGoj: order.fabricGoj || 0,
+            status: 'In Cutting',
             stage: 'Cutting'
-        }));
+        };
 
         return {
             ...prev,
-            cuttingStock: [...newEntries, ...(prev.cuttingStock || [])],
+            cuttingStock: [newLot, ...(prev.cuttingStock || [])],
             productionRequests: (prev.productionRequests || []).map(r => r.id === order.id ? { ...r, status: 'In Cutting', lotNo } : r)
         };
     });
-    showNotify(`B2B অর্ডার লট #${lotNo}-এ যুক্ত হয়েছে এবং সাইজ অনুযায়ী বিভক্ত হয়েছে!`, "success");
+    showNotify(`B2B অর্ডার লট #${lotNo}-এ যুক্ত হয়েছে!`, "success");
     logAction(user, 'B2B_ORDER_ACCEPT', `${order.client} এর (${order.design}) অর্ডারটি লট #${lotNo}-এ এক্সেপ্ট করা হয়েছে।`);
   };
   const [showModal, setShowModal] = useState(false);
@@ -239,101 +236,102 @@ const CuttingPanel = ({
             </button>
         </div>
         <div className="w-[210mm] mx-auto bg-white border border-slate-100 shadow-2xl p-1 relative">
-            <UniversalSlip data={printSlip} type="CUTTING" copyTitle="MASTER ARCHIVE" SafeText={SafeText} />
+            <UniversalSlip data={printSlip} type="CUTTING" copyTitle="MASTER ARCHIVE" />
             <div className="h-4 border-t-2 border-dashed border-slate-300 my-10"></div>
-            <UniversalSlip data={printSlip} type="CUTTING" copyTitle="FACTORY COPY" SafeText={SafeText} />
+            <UniversalSlip data={printSlip} type="CUTTING" copyTitle="FACTORY COPY" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 pb-32 animate-fade-up px-1 md:px-4 text-[var(--text-primary)]">
+    <div className="space-y-10 pb-32 animate-fade-up px-1 md:px-4 text-black">
       {/* SaaS Operational HUD */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-        <div className="saas-card bg-slate-950 text-white border-none shadow-2xl flex flex-col justify-between group overflow-hidden relative !p-5">
-            <div className="flex justify-between items-start mb-3 relative z-10">
-                <div className="w-9 h-9 bg-white/10 text-white rounded-xl flex items-center justify-center shadow-inner group-hover:rotate-12 transition-transform">
-                    <Package size={18} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-slate-950 p-6 rounded-xl text-white shadow-xl flex flex-col justify-between group overflow-hidden relative">
+            <div className="flex justify-between items-start mb-6 relative z-10">
+                <div className="w-14 h-14 bg-white/10 text-white rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                    <Package size={24} />
                 </div>
                 <div className="text-right">
-                    <p className="text-xl font-black tracking-tight leading-none italic">{stats.totalIssued.toLocaleString()}</p>
-                    <p className="text-[7px] font-black text-white/40 uppercase tracking-[0.3em] mt-1.5 leading-none">TOTAL ISSUED</p>
+                    <p className="text-3xl font-bold tracking-tight leading-none">{stats.totalIssued.toLocaleString()}</p>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1 uppercase leading-none">মোট ইস্যু (Total Issued)</p>
                 </div>
             </div>
-            <div className="flex items-center gap-2 text-white/30 border-t border-white/10 pt-3 relative z-10">
+            <div className="flex items-center gap-3 text-white/30 border-t border-white/10 pt-4 relative z-10">
                 <div className="flex gap-1">
-                    {[1,2,3].map(i => <div key={i} className="w-1.5 h-0.5 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: `${i*0.2}s` }}></div>)}
+                    {[1,2,3].map(i => <div key={i} className="w-2 h-1 bg-white/20 rounded-full animate-pulse" style={{ animationDelay: `${i*0.2}s` }}></div>)}
                 </div>
-                <p className="text-[6.5px] font-black tracking-widest uppercase">PRODUCTION PROTOCOL ACTIVE</p>
+                <p className="text-[8px] font-bold tracking-widest uppercase whitespace-nowrap">Production Stream Active</p>
             </div>
         </div>
 
-        <div className="saas-card flex items-center justify-between group !p-5 border-b-2 border-b-blue-600">
-            <div className="text-left space-y-0.5">
-                <p className="text-subtitle !text-[7px]">IN PRODUCTION</p>
-                <p className="text-2xl font-black tracking-tighter text-[var(--text-primary)] leading-none italic">{stats.inProduction.toLocaleString()}</p>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-6 group">
+            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                <Activity size={24} />
             </div>
-            <div className="w-10 h-10 bg-blue-50 text-blue-600 dark:bg-blue-900/10 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                <Activity size={18} />
-            </div>
-        </div>
-
-        <div className="saas-card flex items-center justify-between group !p-5 border-b-2 border-b-emerald-600">
-            <div className="text-left space-y-0.5">
-                <p className="text-subtitle !text-[7px]">TOTAL RECEIVED</p>
-                <p className="text-2xl font-black tracking-tighter text-[var(--text-primary)] leading-none italic">{stats.received.toLocaleString()}</p>
-            </div>
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/10 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                <CheckCircle size={18} />
+            <div>
+                <p className="text-3xl font-bold tracking-tight text-black dark:text-white dark:text-white leading-none mb-1">{stats.inProduction.toLocaleString()}</p>
+                <p className="text-[10px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest leading-none">উৎপাদনে আছে (In-Production)</p>
             </div>
         </div>
 
-        <div className="saas-card flex items-center justify-between group !p-5 border-b-2 border-b-rose-600">
-            <div className="text-left space-y-0.5">
-                <p className="text-subtitle !text-[7px] text-rose-600">PENDING LOTS</p>
-                <p className="text-2xl font-black tracking-tighter text-rose-600 leading-none italic">{stats.pending.toLocaleString()}</p>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-6 group">
+            <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                <CheckCircle size={24} />
             </div>
-            <div className="w-10 h-10 bg-rose-50 dark:bg-rose-900/10 rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
-                <Clock size={18} />
+            <div>
+                <p className="text-3xl font-bold tracking-tight text-black dark:text-white dark:text-white leading-none mb-1">{stats.received.toLocaleString()}</p>
+                <p className="text-[10px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest leading-none">মোট জমা হয়েছে (Received)</p>
+            </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-6 group">
+            <div className="w-14 h-14 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+                <Clock size={24} />
+            </div>
+            <div>
+                <p className="text-3xl font-bold tracking-tight text-black dark:text-white dark:text-white leading-none mb-1">{stats.pending.toLocaleString()}</p>
+                <p className="text-[10px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest leading-none">বাকি লট (Lots Pending)</p>
             </div>
         </div>
       </div>
 
+
       {/* Control Bar - SaaS Pill Navigation */}
-      <div className="bg-white dark:bg-slate-900 !p-1 flex flex-col lg:flex-row items-center justify-between gap-4 rounded-xl border border-[var(--border)] shadow-sm">
+      <div className="bg-white dark:bg-slate-900 !p-1.5 flex flex-col lg:flex-row items-center justify-between gap-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm mb-6">
         <div className="flex flex-wrap gap-1 w-full lg:w-auto overflow-x-auto no-scrollbar">
           {[
-            { id: "Incoming Orders", label: "ইনকামিং অর্ডার" },
-            { id: "Design Registration", label: "ডিজাইন এন্ট্রি" },
-            { id: "Cutting Queue", label: "কাটিং কিউ" },
-            { id: "Production Status", label: "সিস্টেম স্ট্যাটাস" }
+            { id: "Incoming Orders", label: "ইনকামিং অর্ডার (B2B Incoming)" },
+            { id: "Design Registration", label: "ডিজাইন এন্ট্রি (Registration)" },
+            { id: "Cutting Queue", label: "কাটিং কিউ (Queue)" },
+            { id: "Production Status", label: "প্রোডাকশন স্ট্যাটাস (Stats)" }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-slate-950 text-white shadow-md dark:bg-white dark:text-black' : 'text-[var(--text-muted)] hover:text-black dark:hover:text-white'}`}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === tab.id ? 'bg-slate-950 text-white shadow-lg' : 'text-black dark:text-white dark:text-white hover:text-black dark:text-white dark:hover:text-white'}`}
             >
               {tab.label}
             </button>
           ))}
         </div>
 
-        <div className="flex items-center gap-2 w-full lg:w-auto px-1">
+        <div className="flex items-center gap-3 w-full lg:w-auto">
           <div className="relative group flex-1 lg:flex-none">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-black dark:text-white dark:text-white" />
             <input
-              placeholder="সার্চ..."
-              className="premium-input !pl-10 !h-9 !text-[9px] !w-full lg:!w-44"
+              placeholder="ডিজাইন বা লট..."
+              className="premium-input !pl-11 !h-11 !text-[10px] !bg-slate-50 dark:!bg-slate-800/50"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <button 
              onClick={() => setShowModal(true)}
-             className="action-btn-primary !w-9 !h-9 !p-0 !rounded-lg"
+             className="w-11 h-11 bg-slate-950 text-white rounded-xl shadow-lg flex items-center justify-center hover:bg-black transition-all"
           >
-            <Plus size={16} />
+            <Plus size={18} />
           </button>
         </div>
       </div>
@@ -342,37 +340,37 @@ const CuttingPanel = ({
       {/* Main Tab Content */}
       <div className="animate-fade-up">
         {activeTab === "Incoming Orders" && (
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {(masterData.productionRequests || [])
                 .filter(r => r.status !== 'In Cutting' && r.status !== 'Approved')
                 .map((req, i) => (
-                  <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-sm hover:border-blue-500 transition-all flex flex-col group p-4 space-y-3">
+                  <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-sm hover:border-blue-500 transition-all flex flex-col group p-6 space-y-6">
                       <div className="flex justify-between items-start">
                           <div>
-                              <p className="text-[7px] font-black text-blue-600 uppercase tracking-widest mb-0.5 italic">B2B INCOMING</p>
-                              <h4 className="text-base font-black uppercase italic leading-none text-[var(--text-primary)]"><SafeText data={req.design} /></h4>
+                              <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1 italic">B2B INCOMING</p>
+                              <h4 className="text-xl font-black uppercase italic leading-none">{req.design}</h4>
                           </div>
                           <div className="text-right">
-                              <p className="text-[9px] font-black text-[var(--text-muted)] uppercase"><SafeText data={req.client} /></p>
-                              <p className="text-[8px] font-bold text-[var(--text-muted)] opacity-60 font-mono mt-0.5"><SafeText data={req.date} /></p>
+                              <p className="text-xs font-black text-slate-400 uppercase">{req.client}</p>
+                              <p className="text-[9px] font-bold text-slate-300 font-mono mt-1">{req.date}</p>
                           </div>
                       </div>
                       
-                      <div className="p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg space-y-2">
+                      <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl space-y-4">
                           <div className="flex justify-between items-end">
                               <div>
-                                  <p className="text-[7px] font-black uppercase text-slate-400 mb-0.5">Total Pieces</p>
-                                  <p className="text-lg font-black italic">{Number(req.totalBorka || 0) + Number(req.totalHijab || 0)} <span className="text-[9px]">PCS</span></p>
+                                  <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Total Pieces</p>
+                                  <p className="text-2xl font-black italic">{Number(req.totalBorka || 0) + Number(req.totalHijab || 0)} <span className="text-xs">PCS</span></p>
                               </div>
                               <div className="text-right">
-                                  <p className="text-[7px] font-black uppercase text-slate-400 mb-0.5">Fabric Consumed</p>
-                                  <p className="text-sm font-black italic text-rose-500">{req.fabricGoj} <span className="text-[9px]">YDS</span></p>
+                                  <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Fabric Consumed</p>
+                                  <p className="text-lg font-black italic text-rose-500">{req.fabricGoj} <span className="text-xs">YDS</span></p>
                               </div>
                           </div>
                       </div>
 
-                      <div className="space-y-2.5 border-t border-slate-100 dark:border-slate-800 pt-3 mt-auto">
-                          <p className="text-[8px] font-bold text-[var(--text-muted)] line-clamp-1 italic uppercase leading-none">Note: <SafeText data={req.note} fallback="None" /></p>
+                      <div className="space-y-4 border-t border-slate-100 dark:border-slate-800 pt-6">
+                          <p className="text-[10px] font-bold text-slate-500 line-clamp-2 italic uppercase">Note: {req.note || 'No special requirements listed.'}</p>
                           <button 
                             onClick={() => {
                                 setEntryData({
@@ -385,9 +383,9 @@ const CuttingPanel = ({
                                 });
                                 setShowModal(true);
                             }}
-                            className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-blue-700 active:scale-95 transition-all"
+                            className="w-full py-4 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-blue-700 active:scale-95 transition-all"
                           >
-                             অর্ডার গ্রহণ ও প্রসেসিং
+                             অর্ডার গ্রহণ ও প্রসেসিং শুরু (START PROCESSING)
                           </button>
                       </div>
                   </div>
@@ -396,7 +394,7 @@ const CuttingPanel = ({
         )}
 
         {activeTab === "Cutting Queue" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {(masterData.cuttingStock || [])
               .filter(item => 
                 item.lotNo?.toString().includes(searchTerm) || 
@@ -404,8 +402,8 @@ const CuttingPanel = ({
                 item.color?.toLowerCase().includes(searchTerm.toLowerCase())
               ).length === 0 ? (
                 <div className="col-span-full h-80 flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-100 dark:border-slate-800 italic">
-                    <Box size={32} className="text-[var(--text-muted)] opacity-20 mb-4" />
-                    <p className="text-[9px] font-bold text-[var(--text-primary)] uppercase tracking-widest leading-none">কোনো রেকর্ড পাওয়া যায়নি</p>
+                    <Box size={40} className="text-slate-200 mb-4" />
+                    <p className="text-[10px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest leading-none">কোনো রেকর্ড পাওয়া যায়নি (No Records)</p>
                 </div>
               ) : (
                 (masterData.cuttingStock || [])
@@ -414,62 +412,62 @@ const CuttingPanel = ({
                     item.design?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     item.color?.toLowerCase().includes(searchTerm.toLowerCase())
                   ).map((item, idx) => (
-                    <div key={item.id || idx} className="flex flex-col h-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-sm hover:border-slate-950 transition-all group animate-fade-up">
-                        <div className="p-3.5 space-y-3.5 flex-1">
+                    <div key={item.id || idx} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-sm hover:border-slate-950 transition-all flex flex-col group animate-fade-up">
+                        <div className="p-6 space-y-6 flex-1">
                             <div className="flex justify-between items-start">
-                                <div className="space-y-0.5">
-                                    <p className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none">ডিজাইন আইডি (Design)</p>
-                                    <h4 className="text-base font-black tracking-tight text-[var(--text-primary)] uppercase leading-none"><SafeText data={item.design} /></h4>
+                                <div className="space-y-1">
+                                    <p className="text-[9px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest leading-none">ডিজাইন আইডি (Design)</p>
+                                    <h4 className="text-2xl font-bold tracking-tight text-black dark:text-white dark:text-white uppercase leading-none">{item.design}</h4>
                                 </div>
-                                <div className="w-8 h-8 bg-slate-950 text-white rounded-lg flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform font-black text-[9px] flex-col leading-none text-center">
-                                    <span>#<SafeText data={item.lotNo} /></span>
+                                <div className="w-12 h-12 bg-slate-950 text-white rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform font-bold text-xs flex-col leading-none text-center">
+                                    <span className="text-[10px]">#{item.lotNo}</span>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-2">
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
-                                    <p className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-0.5 italic">রঙ</p>
-                                    <p className="text-[9px] font-black text-[var(--text-primary)] truncate uppercase"><SafeText data={item.color} /></p>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <p className="text-[8px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 italic">রঙ</p>
+                                    <p className="text-sm font-bold text-black dark:text-white dark:text-white truncate uppercase">{item.color}</p>
                                 </div>
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
-                                    <p className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-0.5 italic">তারিখ</p>
-                                    <p className="text-[9px] font-black text-[var(--text-primary)] truncate italic"><SafeText data={item.date} /></p>
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <p className="text-[8px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 italic">তারিখ</p>
+                                    <p className="text-sm font-bold text-black dark:text-white dark:text-white truncate italic">{item.date}</p>
                                 </div>
-                                <div className="bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
-                                    <p className="text-[7px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-0.5 italic">ক্লায়েন্ট</p>
-                                    <p className="text-[9px] font-black text-[var(--text-primary)] truncate uppercase"><SafeText data={item.client} fallback="FACTORY" /></p>
+                                <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <p className="text-[8px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 italic">ক্লায়েন্ট</p>
+                                    <p className="text-sm font-bold text-black dark:text-white dark:text-white truncate uppercase">{item.client || '-'}</p>
                                 </div>
                             </div>
                             
-                            <div className="flex justify-between items-center py-3 border-y border-slate-100 dark:border-slate-800 border-dashed">
+                            <div className="flex justify-between items-center py-5 border-y border-slate-100 dark:border-slate-800 border-dashed">
                                 <div className="flex flex-col">
-                                     <span className="text-[7px] font-black text-black/30 dark:text-white/30 uppercase tracking-widest mb-0.5 leading-none">বোরকা (Borka)</span>
-                                     <span className="text-xl font-black text-black dark:text-white leading-none"><SafeText data={item.borka} /></span>
+                                     <span className="text-[9px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 leading-none">বোরকা (Borka)</span>
+                                     <span className="text-3xl font-bold text-black dark:text-white dark:text-white leading-none">{item.borka}</span>
                                 </div>
-                                <div className="w-px h-6 bg-slate-100 dark:bg-slate-800"></div>
+                                <div className="w-px h-10 bg-slate-100 dark:bg-slate-800"></div>
                                 <div className="text-right">
-                                     <span className="text-[7px] font-black text-black/30 dark:text-white/30 uppercase tracking-widest mb-0.5 leading-none">হিজাব (Hijab)</span>
-                                     <span className="text-xl font-black text-black dark:text-white leading-none"><SafeText data={item.hijab} /></span>
+                                     <span className="text-[9px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 leading-none">হিজাব (Hijab)</span>
+                                     <span className="text-3xl font-bold text-black dark:text-white dark:text-white leading-none">{item.hijab}</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Action Footer */}
-                        <div className="flex gap-2 p-3 bg-slate-50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800 mt-auto">
-                            <button onClick={() => setPrintSlip(item)} className="w-8 h-8 bg-white dark:bg-slate-900 rounded-lg flex items-center justify-center text-[var(--text-primary)] hover:bg-slate-950 hover:text-white transition-all shadow-sm border border-slate-200 dark:border-slate-700" title="স্লিপ প্রিন্ট">
-                                <Printer size={13} />
+                        <div className="flex gap-3 p-6 bg-slate-50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800">
+                            <button onClick={() => setPrintSlip(item)} className="w-11 h-11 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-black dark:text-white dark:text-white hover:bg-slate-950 hover:text-white transition-all shadow-sm border border-slate-200 dark:border-slate-700" title="স্লিপ প্রিন্ট">
+                                <Printer size={16} />
                             </button>
                             <button 
                                 onClick={() => setActivePanel('Swing')} 
-                                className="flex-1 bg-slate-950 text-white dark:bg-white dark:text-slate-950 rounded-lg text-[8px] font-black uppercase tracking-widest shadow-md hover:bg-slate-800 transition-all font-outfit"
+                                className="flex-1 bg-slate-950 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all font-bold"
                             >
-                                সুইং (Swing)
+                                সুইং এ পাঠান (Swing)
                             </button>
                             {user?.role === 'admin' && (
                                 <button 
                                     onClick={() => handleDelete(item.id)} 
-                                    className="w-8 h-8 bg-white dark:bg-slate-900 rounded-lg flex items-center justify-center text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm border border-slate-200 dark:border-slate-700" title="ডিলিট">
-                                    <Trash2 size={13} />
+                                    className="w-11 h-11 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm border border-slate-200 dark:border-slate-700" title="ডিলিট">
+                                    <Trash2 size={16} />
                                 </button>
                             )}
                         </div>
@@ -481,19 +479,19 @@ const CuttingPanel = ({
         )}
 
         {activeTab === "Design Registration" && (
-           <div className="bg-slate-50 dark:bg-slate-800/30 flex flex-col items-center justify-center py-24 space-y-6 rounded-xl border-2 border-dashed border-slate-100 dark:border-slate-800">
-              <div className="w-16 h-16 bg-white dark:bg-slate-900 shadow-xl rounded-2xl flex items-center justify-center animate-bounce text-slate-200">
-                <Box size={32} strokeWidth={1} />
+           <div className="bg-slate-50 dark:bg-slate-800/30 flex flex-col items-center justify-center py-32 space-y-8 rounded-xl border-2 border-dashed border-slate-100 dark:border-slate-800">
+              <div className="w-20 h-20 bg-white dark:bg-slate-900 shadow-2xl rounded-2xl flex items-center justify-center animate-bounce text-slate-200">
+                <Box size={40} strokeWidth={1} />
               </div>
-              <div className="text-center space-y-2">
-                <h2 className="text-2xl font-black uppercase tracking-tight text-black dark:text-white">নতুন কাটিং <span className="text-blue-600">এন্ট্রি করুন</span></h2>
-                <p className="text-[8px] font-black tracking-[0.4em] text-slate-400 max-w-sm mx-auto uppercase italic">
-                  Launch the registration protocol to initialize a new lot. 
+              <div className="text-center space-y-3">
+                <h2 className="text-3xl font-bold uppercase tracking-tight text-black dark:text-white dark:text-white">নতুন কাটিং <span className="text-blue-600">আইডি যুক্ত করুন</span></h2>
+                <p className="text-[10px] font-bold tracking-[0.4em] text-black dark:text-white dark:text-white max-w-sm mx-auto uppercase italic">
+                  Launch the registration protocol to initialize a new cutting lot. 
                 </p>
               </div>
               <button 
                 onClick={() => setShowModal(true)}
-                className="px-8 py-4 bg-slate-950 text-white rounded-xl font-bold text-[9px] uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all"
+                className="px-12 py-5 bg-slate-950 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all"
               >
                 প্রোটোকল চালু করুন (Launch)
               </button>
@@ -502,55 +500,55 @@ const CuttingPanel = ({
         )}
 
         {activeTab === "Production Status" && (
-           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-8 md:p-10 space-y-10">
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-8 md:p-12 space-y-12">
                 <div className="flex justify-between items-end">
                    <div>
-                      <h3 className="text-2xl font-black tracking-tight text-black dark:text-white uppercase mb-1">Yield <span className="text-blue-600">Optimizer</span></h3>
-                      <p className="text-[9px] font-black tracking-widest text-slate-400 uppercase italic">Advanced Pattern Utilization Analytics</p>
+                      <h3 className="text-3xl font-bold tracking-tight text-black dark:text-white dark:text-white uppercase mb-2">Yield <span className="text-blue-600">Optimizer</span></h3>
+                      <p className="text-[10px] font-bold tracking-widest text-black dark:text-white dark:text-white uppercase italic">Advanced Pattern Utilization Analytics</p>
                    </div>
-                   <Activity className="text-blue-500 opacity-20" size={48} />
+                   <Activity className="text-blue-500 opacity-20" size={56} />
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    {[
                      { label: "Fabric Usage", value: "96.4%", icon: Layers, color: "text-emerald-500" },
-                     { label: "Waste Factor", value: "3.6%", icon: Scissors, color: "text-[var(--text-primary)]" },
+                     { label: "Waste Factor", value: "3.6%", icon: Scissors, color: "text-black dark:text-white dark:text-white" },
                      { label: "Velocity", value: "142 U/H", icon: Activity, color: "text-blue-500" },
                      { label: "Queue Sync", value: "0.0s", icon: Clock, color: "text-rose-500" }
                    ].map((a, i) => (
-                     <div key={i} className="p-5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <div className="flex justify-between items-start mb-3">
-                           <div className="w-8 h-8 bg-white dark:bg-slate-900 rounded-lg shadow-sm flex items-center justify-center text-[var(--text-primary)]">
-                              <a.icon size={14} />
+                     <div key={i} className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                        <div className="flex justify-between items-start mb-4">
+                           <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-lg shadow-sm flex items-center justify-center text-black dark:text-white dark:text-white">
+                              <a.icon size={16} />
                            </div>
-                           <span className="text-[7.5px] font-bold uppercase tracking-widest text-slate-300">NODE 0{i+1}</span>
+                           <span className="text-[8px] font-bold uppercase tracking-widest text-slate-300">NODE 0{i+1}</span>
                         </div>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 italic leading-none"><SafeText data={a.label} /></p>
-                        <h4 className={`text-2xl font-bold italic leading-none ${a.color}`}><SafeText data={a.value} /></h4>
+                        <p className="text-[10px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 italic leading-none">{a.label}</p>
+                        <h4 className={`text-3xl font-bold italic leading-none ${a.color}`}>{a.value}</h4>
                      </div>
                    ))}
                 </div>
               </div>
 
-              <div className="bg-slate-950 p-8 rounded-xl text-white flex flex-col justify-between items-center text-center group relative overflow-hidden">
+              <div className="bg-slate-950 p-10 rounded-xl text-white flex flex-col justify-between items-center text-center group relative overflow-hidden">
                   <div className="relative">
-                    <div className="w-32 h-32 rounded-full border-[8px] border-white/5 border-t-blue-500 animate-[spin_3s_linear_infinite]"></div>
+                    <div className="w-40 h-40 rounded-full border-[10px] border-white/5 border-t-blue-500 animate-[spin_3s_linear_infinite]"></div>
                     <div className="absolute inset-0 flex items-center justify-center">
-                       <Activity size={24} className="animate-pulse text-blue-500" />
+                       <Activity size={32} className="animate-pulse text-blue-500" />
                     </div>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                      <div className="space-y-1">
-                        <h4 className="text-2xl font-bold uppercase tracking-tight">Live Matrix</h4>
-                        <p className="text-[9px] font-bold text-white/30 uppercase tracking-[0.3em] italic">
+                        <h4 className="text-3xl font-bold uppercase tracking-tight">Live Matrix</h4>
+                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.3em] italic">
                           Synchronizing Ground Nodes...
                         </p>
                      </div>
                   </div>
-                  <div className="w-full pt-6 border-t border-white/10 flex justify-between items-center">
-                     <span className="text-[8px] font-bold tracking-widest opacity-40">AUTO-SYNC: ON</span>
-                     <span className="text-emerald-500 text-[8px] font-bold tracking-widest">SYSTEM CLEAR</span>
+                  <div className="w-full pt-8 border-t border-white/10 flex justify-between items-center">
+                     <span className="text-[9px] font-bold tracking-widest opacity-40">AUTO-SYNC: ON</span>
+                     <span className="text-emerald-500 text-[9px] font-bold tracking-widest">SYSTEM CLEAR</span>
                   </div>
               </div>
            </div>
@@ -559,15 +557,15 @@ const CuttingPanel = ({
       </div>
 
       {/* Return Home Link */}
-      <div className="flex justify-center pt-20 pb-10">
+      <div className="flex justify-center pt-24 pb-12">
         <button
             onClick={() => setActivePanel("Overview")}
-            className="group relative flex items-center gap-3 bg-white dark:bg-slate-900 px-8 py-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:border-slate-950 transition-all duration-300"
+            className="group relative flex items-center gap-4 bg-white dark:bg-slate-900 px-10 py-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:border-slate-950 transition-all duration-300"
         >
-            <div className="p-2 bg-slate-950 text-white rounded-lg transition-transform shadow-lg group-hover:scale-110">
-                <ArrowLeft size={16} />
+            <div className="p-2.5 bg-slate-950 text-white rounded-xl transition-transform shadow-lg group-hover:scale-110">
+                <ArrowLeft size={18} />
             </div>
-            <span className="text-xs font-bold tracking-tight text-black dark:text-white uppercase">
+            <span className="text-sm font-bold tracking-tight text-black dark:text-white dark:text-white uppercase">
                 ড্যাশবোর্ডে ফিরে যান (Return)
             </span>
         </button>
@@ -576,35 +574,35 @@ const CuttingPanel = ({
       {/* Entry Modal */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-2 md:p-4 overflow-y-auto pt-10 pb-20 no-scrollbar">
-            <div className="w-full max-w-4xl my-auto bg-white dark:bg-slate-900 rounded-xl shadow-2xl p-5 md:p-8 relative overflow-hidden border border-slate-100 dark:border-slate-800 animate-fade-up max-h-[90vh] overflow-y-auto no-scrollbar">
+          <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+            <div className="w-full max-w-4xl my-auto bg-white dark:bg-slate-900 rounded-xl shadow-2xl p-8 md:p-12 relative overflow-hidden border border-slate-100 dark:border-slate-800 animate-fade-up">
               <button 
                 onClick={() => setShowModal(false)} 
-                className="absolute top-4 right-4 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-950 hover:text-white transition-all text-black dark:text-white"
+                className="absolute top-6 right-6 p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl hover:bg-slate-950 hover:text-white transition-all text-black dark:text-white dark:text-white"
               >
-                <X size={16} />
+                <X size={20} />
               </button>
 
-              <div className="space-y-8">
-                <div className="text-center space-y-2">
-                  <div className="mx-auto w-12 h-12 bg-slate-950 text-white rounded-xl flex items-center justify-center shadow-lg"><Scissors size={20} /></div>
+              <div className="space-y-10">
+                <div className="text-center space-y-3">
+                  <div className="mx-auto w-14 h-14 bg-slate-950 text-white rounded-xl flex items-center justify-center shadow-lg"><Scissors size={24} /></div>
                   <div>
-                    <h2 className="text-xl font-black tracking-tight text-black dark:text-white uppercase leading-none">নতুন কাটিং <span className="text-blue-600">এন্ট্রি করুন</span></h2>
-                    <p className="text-[9px] font-black text-[var(--text-muted)] tracking-widest mt-1.5 uppercase italic leading-none">Primary Material Injection Protocol</p>
+                    <h2 className="text-2xl font-bold tracking-tight text-black dark:text-white dark:text-white uppercase leading-none">নতুন কাটিং <span className="text-blue-600">এন্ট্রি করুন</span></h2>
+                    <p className="text-[10px] font-bold text-black dark:text-white dark:text-white tracking-widest mt-2 uppercase italic leading-none">Primary Material Injection Protocol</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest ml-1">ডিজাইন (Design)</label>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <div className="space-y-6">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold uppercase text-black dark:text-white dark:text-white tracking-widest ml-1">ডিজাইন (Design)</label>
                       <select 
-                        className="premium-input !h-10 text-xs font-bold uppercase" 
+                        className="premium-input !h-12 text-sm font-bold uppercase" 
                         value={entryData.design} 
                         onChange={(e) => setEntryData(p => ({ ...p, design: e.target.value }))}
                       >
                         <option value="">ডিজাইন নির্বাচন করুন...</option>
-                        {(masterData.designs || []).map(d => <option key={d.name} value={d.name}><SafeText data={d.name} /></option>)}
+                        {(masterData.designs || []).map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
                       </select>
                     </div>
                     
@@ -616,7 +614,7 @@ const CuttingPanel = ({
                         onChange={(e) => setEntryData(p => ({ ...p, color: e.target.value }))}
                       >
                         <option value="">রঙ নির্বাচন করুন...</option>
-                        {(masterData.colors || []).map(c => <option key={c} value={c}><SafeText data={c} /></option>)}
+                        {(masterData.colors || []).map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
 
@@ -693,7 +691,7 @@ const CuttingPanel = ({
                            <label className="text-[10px] font-bold uppercase text-rose-500 tracking-widest ml-1 animate-pulse">মোট কত গজ লেগেছে?</label>
                            <input 
                              type="number"
-                             className="premium-input !h-12 text-lg font-black !text-rose-600 bg-rose-50 dark:bg-rose-900/10 border-rose-200" 
+                             className="premium-input !h-12 text-lg font-black text-rose-600 bg-rose-50 dark:bg-rose-900/10 border-rose-200" 
                              placeholder="0.00 গজ"
                              value={entryData.totalYards} 
                              onChange={(e) => setEntryData(p => ({ ...p, totalYards: e.target.value }))}

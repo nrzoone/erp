@@ -56,9 +56,7 @@ import InventoryPanel from "./components/panels/InventoryPanel";
 import ExpensePanel from "./components/panels/ExpensePanel";
 import OutsideWorkPanel from "./components/panels/OutsideWorkPanel";
 import SecurityPanel from "./components/panels/SecurityPanel";
-import ClientDashboard from "./components/panels/ClientDashboard";
 import MenuPanel from "./components/panels/MenuPanel";
-import ClientLedgerPanel from "./components/panels/ClientLedgerPanel";
 import { useMasterData } from "./hooks/useMasterData";
 import { Toast } from "./components/UIComponents";
 import { useTranslation } from "./utils/translations";
@@ -371,10 +369,11 @@ const MENU_CATEGORIES = [
         label: "মাস্টার কন্ট্রোল (MASTER HUB)",
         items: [
             { id: "Accounts", label: "Treasury (ক্যাশ)", icon: DollarSign, sub: "ফাইন্যান্স", tab: "treasury" },
-            { id: "Accounts", label: "Partners (বি২বি)", icon: Users, sub: "অংশীদার", tab: "partners" },
             { id: "Accounts", label: "Workforce (শ্রমিক)", icon: UserCheck, sub: "কারিগর লেজার", tab: "workforce" },
             { id: "Accounts", label: "Analytics (রিপোর্ট)", icon: BarChart2, sub: "অ্যানালিটিক্স", tab: "analytics" },
             { id: "Accounts", label: "System (নিরাপত্তা)", icon: ShieldCheck, sub: "অডিট লগ", tab: "system" },
+            { id: "Settings", label: "সেটিংস", icon: Settings, sub: "মাস্টার কন্ট্রোল" },
+            { id: "History", label: "Security", icon: Shield, sub: "সিস্টেম লগ" },
         ]
     }
 ];
@@ -402,7 +401,7 @@ const Sidebar = ({ activePanel, setActivePanel, panelTab, setPanelTab, user, set
                     const filteredItems = category.items.filter(item => {
                         const role = user?.role?.toLowerCase();
                         if (role === 'admin') return true;
-                        if (role === 'manager') return !['Settings', 'Security'].includes(item.id);
+                        if (role === 'manager') return !['Security', 'History'].includes(item.id);
                         if (role === 'worker') return ['Cutting', 'Swing', 'Stone', 'Pata', 'Outside', 'Attendance', 'WorkerSummary'].includes(item.id);
                         return false;
                     });
@@ -472,7 +471,6 @@ const AppContent = () => {
         const savedUser = localStorage.getItem('nrzone_user');
         if (savedUser) {
             const parsed = JSON.parse(savedUser);
-            if (parsed.role === 'client') return "ClientDashboard";
             if (parsed.role === 'worker') return "WorkerSummary";
         }
         return "Overview";
@@ -574,9 +572,7 @@ const AppContent = () => {
             showNotify(`স্বাগতম, ${u.name}!`); 
             logAction(u, 'LOGIN', 'User logged in successfully');
             
-            if (u.role === 'client') {
-                setActivePanel('ClientDashboard');
-            } else if (u.role === 'worker') {
+            if (u.role === 'worker') {
                 setActivePanel('WorkerSummary');
             } else {
                 setActivePanel('Overview');
@@ -635,9 +631,6 @@ const AppContent = () => {
         recognition.onresult = (event) => {
             const command = event.results[event.results.length - 1][0].transcript.toLowerCase();
             console.log("Voice Command:", command);
-            
-            const isClient = user?.role === 'client';
-            if (isClient) return; // Ignore panel switching for clients
 
             if (command.includes('ড্যাশবোর্ড') || command.includes('মুখ্য')) setActivePanel('Overview');
             if (command.includes('কাটিং')) setActivePanel('Cutting');
@@ -701,20 +694,18 @@ const AppContent = () => {
                         />
                     )}
                     
-                    {user?.role !== 'client' && <Sidebar activePanel={activePanel} setActivePanel={setActivePanel} panelTab={panelTab} setPanelTab={setPanelTab} user={user} setUser={setUser} isOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} t={t} isDarkMode={isDarkMode} masterData={masterData} lowStockItems={lowStockItems} />}
+                    <Sidebar activePanel={activePanel} setActivePanel={setActivePanel} panelTab={panelTab} setPanelTab={setPanelTab} user={user} setUser={setUser} isOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} t={t} isDarkMode={isDarkMode} masterData={masterData} lowStockItems={lowStockItems} />
                     
-                    <main className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative transition-all duration-500 mesh-bg ${user?.role !== 'client' && isSidebarOpen ? 'lg:ml-[300px]' : ''}`}>
+                    <main className={`flex-1 flex flex-col min-w-0 h-screen overflow-hidden relative transition-all duration-500 mesh-bg ${isSidebarOpen ? 'lg:ml-[300px]' : ''}`}>
                         {/* Header Section */}
                         <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 px-2 md:px-8 py-2 md:py-4 sticky top-0 z-[100] transition-all no-print shadow-sm flex items-center justify-between">
                             <div className="flex items-center gap-4 md:gap-6">
-                                {user?.role !== 'client' && (
-                                    <button 
-                                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                                        className="w-10 h-10 rounded-xl bg-slate-950 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg"
-                                    >
-                                        <Menu size={18} />
-                                    </button>
-                                )}
+                                <button 
+                                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                                    className="w-10 h-10 rounded-xl bg-slate-950 text-white flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-lg"
+                                >
+                                    <Menu size={18} />
+                                </button>
                                 <div className="space-y-0.5">
                                     <h2 className="text-xl md:text-2xl font-bold tracking-tight uppercase leading-tight">
                                         <SafeText data={activePanel === "Overview" ? "Dashboard" : activePanel} fallback={activePanel} />
@@ -734,7 +725,7 @@ const AppContent = () => {
                                     <p className="text-sm font-black uppercase leading-none italic"><SafeText data={user?.name} fallback="অপারেটর" /></p>
                                 </div>
                                 <div className="flex gap-2">
-                                    {lowStockItems.length > 0 && user?.role !== 'client' && (
+                                    {lowStockItems.length > 0 && (
                                         <button 
                                             onClick={() => setActivePanel("Stock")}
                                             className="w-10 h-10 rounded-xl bg-orange-500 text-white shadow-lg flex items-center justify-center animate-pulse border-2 border-white dark:border-slate-900"
@@ -754,23 +745,20 @@ const AppContent = () => {
 
                         <div className="flex-1 overflow-y-auto px-1 md:px-4 py-2 md:py-4 relative custom-scrollbar">
                             <div className="max-w-[1400px] mx-auto space-y-4 md:space-y-6 animate-fade-up">
-                                {activePanel === "ClientDashboard" && <ClientDashboard masterData={masterData} user={user} setMasterData={setMasterData} showNotify={showNotify} logAction={logAction} SafeText={SafeText} />}
-                                {user?.role !== 'client' && (
-                                    <>
-                                        {activePanel === "Overview" && <Overview masterData={masterData} user={user} setActivePanel={setActivePanel} t={t} syncStatus={syncStatus} SafeText={SafeText} />}
-                                        {activePanel === "Cutting" && <CuttingPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} logAction={logAction} setActivePanel={setActivePanel} t={t} SafeText={SafeText} />}
-                                        {activePanel === "Swing" && <FactoryPanel type="sewing" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
-                                        {activePanel === "Stone" && <FactoryPanel type="stone" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
-                                        {activePanel === "Pata" && <PataFactoryPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
-                                        {activePanel === "Outside" && <OutsideWorkPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
-                                        {activePanel === "Stock" && <InventoryPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} setActivePanel={setActivePanel} logAction={logAction} SafeText={SafeText} />}
-                                        {activePanel === "Accounts" && <ExpensePanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} setActivePanel={setActivePanel} logAction={logAction} onSyncGoogle={handleSyncToGoogleSheets} initialTab={panelTab} logs={logs} SafeText={SafeText} />}
-                                        {activePanel === "Attendance" && <AttendancePanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
-                                        {activePanel === "Transactions" && <ReportsPanel masterData={masterData} user={user} t={t} logAction={logAction} showNotify={showNotify} setActivePanel={setActivePanel} onSyncGoogle={handleSyncToGoogleSheets} SafeText={SafeText} />}
-                                        {activePanel === "Settings" && <SettingsPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} syncStatus={syncStatus} user={user} t={t} setActivePanel={setActivePanel} logs={logs} downloadBackup={downloadBackup} SafeText={SafeText} />}
-                                        {activePanel === "Menu" && <MenuPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} lowStockItems={lowStockItems} SafeText={SafeText} />}
-                                        {activePanel === "ClientLedger" && <ClientLedgerPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
-                                        {activePanel === "History" && <SecurityPanel masterData={masterData} setActivePanel={setActivePanel} t={t} logs={logs} syncStatus={syncStatus} SafeText={SafeText} />}
+                                {activePanel === "Overview" && <Overview masterData={masterData} user={user} setActivePanel={setActivePanel} t={t} syncStatus={syncStatus} SafeText={SafeText} />}
+                                {activePanel === "Cutting" && <CuttingPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} logAction={logAction} setActivePanel={setActivePanel} t={t} SafeText={SafeText} />}
+                                {activePanel === "Swing" && <FactoryPanel type="sewing" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
+                                {activePanel === "Stone" && <FactoryPanel type="stone" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
+                                {activePanel === "Pata" && <PataFactoryPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
+                                {activePanel === "Outside" && <OutsideWorkPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
+                                {activePanel === "Stock" && <InventoryPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} setActivePanel={setActivePanel} logAction={logAction} SafeText={SafeText} />}
+                                {activePanel === "Accounts" && <ExpensePanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} setActivePanel={setActivePanel} logAction={logAction} onSyncGoogle={handleSyncToGoogleSheets} initialTab={panelTab} logs={logs} SafeText={SafeText} />}
+                                {activePanel === "Attendance" && <AttendancePanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
+                                {activePanel === "Transactions" && <ReportsPanel masterData={masterData} user={user} t={t} logAction={logAction} showNotify={showNotify} setActivePanel={setActivePanel} onSyncGoogle={handleSyncToGoogleSheets} SafeText={SafeText} />}
+                                {activePanel === "Settings" && <SettingsPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} syncStatus={syncStatus} user={user} t={t} setActivePanel={setActivePanel} logs={logs} downloadBackup={downloadBackup} SafeText={SafeText} />}
+                                {activePanel === "Menu" && <MenuPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} lowStockItems={lowStockItems} SafeText={SafeText} />}
+                                {activePanel === "WorkerSummary" && <WorkerSummary masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
+                                {activePanel === "History" && <SecurityPanel masterData={masterData} setActivePanel={setActivePanel} t={t} logs={logs} syncStatus={syncStatus} SafeText={SafeText} />}
                                         {activePanel === "Notifications" && (
                                              <div className="space-y-8 pb-24 animate-fade-up px-2">
                                                  <div className="flex justify-between items-center mb-10">
@@ -794,8 +782,6 @@ const AppContent = () => {
                                                  </div>
                                              </div>
                                         )}
-                                    </>
-                                )}
                             </div>
                         </div>
 

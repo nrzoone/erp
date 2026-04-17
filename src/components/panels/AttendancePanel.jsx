@@ -17,8 +17,7 @@ import {
   ArrowLeft,
   Camera,
   MessageCircle,
-  Fingerprint,
-  TrendingDown
+  Fingerprint
 } from "lucide-react";
 import { syncToSheet } from "../../utils/syncUtils";
 import NRZLogo from "../NRZLogo";
@@ -32,7 +31,6 @@ const AttendancePanel = ({
   setActivePanel,
   t,
   logAction,
-  SafeText
 }) => {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0],
@@ -59,9 +57,6 @@ const AttendancePanel = ({
   }, [masterData.workerCategories, selectedDepartment]);
 
   const getWorkerWage = (worker) => {
-    // Only 'monthly' and 'office' workers get wages based on attendance
-    if (selectedDepartment !== 'monthly' && selectedDepartment !== 'office') return 0;
-    
     const monthlySalary =
       masterData.workerWages?.[selectedDepartment]?.[worker] || 0;
     return Math.round(monthlySalary / 30);
@@ -77,7 +72,7 @@ const AttendancePanel = ({
     return record?.status || "absent";
   };
 
-  const markAttendance = (worker, status, penaltyVoid = false) => {
+  const markAttendance = (worker, status) => {
     setMasterData((prev) => {
       const existingIndex = (prev.attendance || []).findIndex(
         (a) =>
@@ -92,21 +87,14 @@ const AttendancePanel = ({
       let effectiveWage = 0;
       if (status === "present") effectiveWage = dailyWage;
       else if (status === "half-day") effectiveWage = Math.round(dailyWage / 2);
-      else if (status === "late") {
-          // Check if already voided in existing record
-          const existing = (prev.attendance || []).find(a => a.date === selectedDate && a.worker === worker && a.department === selectedDepartment);
-          const isVoid = penaltyVoid || (existing?.penaltyVoid || false);
-          effectiveWage = isVoid ? dailyWage : Math.round(dailyWage * 0.9); 
-      }
 
       if (existingIndex >= 0) {
         newAttendance[existingIndex] = {
           ...newAttendance[existingIndex],
           status,
           wage: effectiveWage,
-          penaltyVoid: status === 'late' ? (penaltyVoid || newAttendance[existingIndex].penaltyVoid || false) : false,
           markedAt: new Date().toISOString(),
-          verification: "manual"
+          verification: "biometric"
         };
       } else {
         newAttendance.push({
@@ -116,7 +104,6 @@ const AttendancePanel = ({
           department: selectedDepartment,
           status,
           wage: effectiveWage,
-          penaltyVoid: status === 'late' ? penaltyVoid : false,
           markedAt: new Date().toISOString(),
           verification: "manual"
         });
@@ -216,13 +203,7 @@ const AttendancePanel = ({
     const halfDay = todayAttendance.filter(
       (a) => a.status === "half-day",
     ).length;
-    const wages = todayAttendance.reduce((sum, a) => {
-        // Double check: only sum wages for monthly/office stakeholders
-        if (a.department === 'monthly' || a.department === 'office') {
-            return sum + (a.wage || 0);
-        }
-        return sum;
-    }, 0);
+    const wages = todayAttendance.reduce((sum, a) => sum + (a.wage || 0), 0);
     return { present, halfDay, wages };
   }, [todayAttendance]);
 
@@ -313,69 +294,67 @@ const AttendancePanel = ({
           return (
             <div
               key={worker}
-              className={`flex flex-col h-full !p-6 border-l-[6px] transition-all group rounded-xl shadow-md ${status === 'present' ? 'border-emerald-500 bg-emerald-50/5 dark:bg-emerald-900/5' : status === 'half-day' ? 'border-amber-400 bg-amber-50/5 dark:bg-amber-900/5' : 'border-slate-50 bg-white dark:bg-slate-900 dark:border-slate-800'}`}
+              className={`saas-card !p-6 border-l-[6px] transition-all group ${status === 'present' ? 'border-emerald-500 bg-emerald-50/10' : status === 'half-day' ? 'border-amber-400 bg-amber-50/10' : 'border-slate-100 bg-white dark:bg-slate-900/50'}`}
             >
               <div className="flex justify-between items-start mb-6">
-                 <div>
-                    <h3 className="text-xl font-black tracking-tight text-[var(--text-primary)] italic uppercase truncate w-32">
-                      <SafeText data={worker} />
-                    </h3>
-                    <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest mt-0.5 italic leading-none">ID: REF-{typeof worker === 'string' ? worker.slice(0,3).toUpperCase() : 'ID'}</p>
-                 </div>
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg ${status === 'present' ? 'bg-emerald-500 text-white' : 'bg-slate-50 dark:bg-slate-800 text-slate-300'}`}>
-                   <UserCheck size={18} />
+                <div>
+                   <h3 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">{worker}</h3>
+                   <p className="text-[8px] font-bold text-black dark:text-white uppercase tracking-widest mt-1">ID: REF-{worker.slice(0,3).toUpperCase()}</p>
+                </div>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${status === 'present' ? 'bg-emerald-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-black dark:text-white'}`}>
+                   <UserCheck size={14} />
                 </div>
               </div>
 
-              <div className="space-y-3 mb-6">
-                 <div className="flex justify-between items-center text-[9px] font-black uppercase text-[var(--text-muted)] tracking-widest italic leading-none">
+              <div className="space-y-4 mb-8">
+                 <div className="flex justify-between items-center text-[9px] font-bold uppercase text-black dark:text-white tracking-widest">
                     <span>Base Earnings</span>
-                    <span className="text-[var(--text-primary)]">৳{dailyWage}</span>
+                    <span className="text-black dark:text-white">৳{dailyWage}</span>
                  </div>
-                 <div className="w-full h-1.5 bg-slate-50 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner">
+                 <div className="w-full h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: status === 'present' ? '100%' : status === 'half-day' ? '50%' : '0%' }}></div>
                  </div>
               </div>
 
-              <div className="flex items-center gap-1.5 mt-auto">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => markAttendance(worker, "present")}
-                  className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all italic ${status === "present" ? "bg-slate-950 text-white shadow-xl scale-105" : "bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-black dark:hover:text-white"}`}
+                  className={`flex-1 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${status === "present" ? "bg-emerald-500 text-white shadow-md" : "bg-slate-50 dark:bg-slate-800 text-black dark:text-white hover:bg-emerald-50 hover:text-emerald-600"}`}
                 >
                   FULL
                 </button>
                 <button
                   onClick={() => markAttendance(worker, "half-day")}
-                  className={`flex-1 py-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all italic ${status === "half-day" ? "bg-amber-400 text-black shadow-xl scale-105" : "bg-slate-50 dark:bg-slate-800 text-slate-400 hover:text-black dark:hover:text-white"}`}
+                  className={`flex-1 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${status === "half-day" ? "bg-amber-400 text-black dark:text-white shadow-md font-extrabold" : "bg-slate-50 dark:bg-slate-800 text-black dark:text-white hover:bg-amber-50 hover:text-amber-600"}`}
                 >
                   HALF
                 </button>
                 <button
                   onClick={() => markAttendance(worker, "absent")}
-                  className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${status === "absent" ? "bg-rose-500 text-white shadow-xl rotate-90" : "bg-slate-50 dark:bg-slate-800 text-slate-400 hover:border-rose-500"}`}
+                  className={`p-2.5 rounded-lg transition-all ${status === "absent" ? "bg-rose-500 text-white shadow-md rotate-90" : "bg-slate-50 dark:bg-slate-800 text-black dark:text-white hover:bg-rose-50 hover:text-rose-600"}`}
                 >
-                  <X size={16} strokeWidth={3} />
+                  <X size={14} />
                 </button>
               </div>
             </div>
           );
         })}
       </div>
-        <div className="flex justify-between items-center no-print w-full max-w-5xl mx-auto mb-10">
+        <div className="flex justify-between items-center no-print w-[210mm] mx-auto mb-12">
           <button
             onClick={() => setShowInvoice(false)}
-            className="neu-button px-6 py-3 text-[10px]"
+            className="bg-slate-50 text-black dark:text-white px-5 py-3 rounded-full font-black uppercase text-xs border border-slate-100 shadow-sm hover:bg-black hover:text-white transition-all"
           >
             ফিরে যান
           </button>
           <button
             onClick={() => window.print()}
-            className="action-btn-primary !px-10 !py-4 shadow-xl"
+            className="bg-black text-white px-12 py-5 rounded-full font-black uppercase text-xs shadow-2xl border-b-[8px] border-zinc-900"
           >
             প্রিন্ট ইনভয়েস (A4)
           </button>
         </div>
-        <div className="w-[210mm] min-h-[297mm] mx-auto border-[1px] border-slate-100 p-10 md:p-14 rounded-2xl shadow-3xl relative overflow-hidden bg-white print:w-full print:min-h-[100vh] print:shadow-none print:border-none">
+        <div className="w-[210mm] min-h-[297mm] mx-auto border-[12px] border-slate-50 p-10 md:p-14 rounded-xl shadow-3xl relative overflow-hidden bg-white print:w-full print:min-h-[100vh] print:shadow-none print:border-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.03] -rotate-12 pointer-events-none">
             <NRZLogo size="xl" white={false} />
           </div>
@@ -406,10 +385,10 @@ const AttendancePanel = ({
               {weeklySummary.workers.map((w, i) => (
                 <tr key={i} className="text-sm font-black group">
                   <td className="py-4 uppercase tracking-tighter text-black">
-                    <SafeText data={w.worker} />
+                    {w.worker}
                   </td>
                   <td className="py-4 text-center text-black dark:text-white">
-                    <SafeText data={w.presentDays} />{" "}
+                    {w.presentDays}{" "}
                     <span className="text-[8px] tracking-widest">DAYS</span>
                   </td>
                   <td className="py-4 text-right text-black">
@@ -438,68 +417,65 @@ const AttendancePanel = ({
   }
 
   return (
-    <div className="space-y-4 pb-24 animate-fade-up px-1 md:px-2 text-black dark:text-white border-t-0">
+    <div className="space-y-6 pb-24 animate-fade-up px-1 md:px-2 text-black dark:text-white border-t-0">
       {/* SaaS Stat Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="saas-card flex items-center gap-5 group">
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 dark:bg-blue-900/10 rounded-2xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-            <Users size={22} />
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-6 group">
+          <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+            <Users size={24} />
           </div>
           <div>
-            <p className="text-2xl font-black tracking-tighter text-black dark:text-white leading-none mb-1 italic">{workers.length}</p>
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">মোট কর্মী (WORKFORCE)</p>
+            <p className="text-3xl font-bold tracking-tight text-black dark:text-white leading-none mb-1">{workers.length}</p>
+            <p className="text-[10px] font-bold text-black dark:text-white uppercase tracking-widest leading-none">মোট কর্মী (Workforce)</p>
           </div>
         </div>
-        <div className="saas-card flex items-center gap-4 group">
-          <div className="w-10 h-10 bg-emerald-50 text-emerald-600 dark:bg-emerald-900/10 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-            <UserCheck size={20} />
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-6 group">
+          <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+            <UserCheck size={24} />
           </div>
           <div>
-            <p className="text-2xl font-black tracking-tighter text-emerald-600 leading-none mb-1 italic">{stats.present}</p>
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">আজ উপস্থিত (PRESENT)</p>
+            <p className="text-3xl font-bold tracking-tight text-emerald-600 leading-none mb-1">{stats.present}</p>
+            <p className="text-[10px] font-bold text-black dark:text-white uppercase tracking-widest leading-none">আজ উপস্থিত (Present Today)</p>
           </div>
         </div>
-        <div className="saas-card flex items-center gap-4 group">
-          <div className="w-10 h-10 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/10 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
-            <DollarSign size={20} />
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm flex items-center gap-6 group">
+          <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform">
+            <DollarSign size={24} />
           </div>
           <div>
-            <p className="text-2xl font-black tracking-tighter text-black dark:text-white leading-none mb-1 italic">৳{stats.wages.toLocaleString()}</p>
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">দৈনিক মজুরি (WAGES)</p>
+            <p className="text-3xl font-bold tracking-tight text-black dark:text-white leading-none mb-1">৳{stats.wages.toLocaleString()}</p>
+            <p className="text-[10px] font-bold text-black dark:text-white uppercase tracking-widest leading-none">দৈনিক পেমেন্ট (Payments)</p>
           </div>
         </div>
       </div>
 
 
 
-      {/* Control Bar - SaaS Pill Navigation */}
-      <div className="bg-white dark:bg-slate-900 !p-1.5 flex flex-col md:flex-row items-center justify-between gap-4 rounded-[var(--radius-saas)] border border-[var(--border)] shadow-[var(--shadow-card)]">
-        <div className="flex bg-slate-50 dark:bg-slate-800/50 p-1 rounded-xl w-full md:w-auto overflow-x-auto no-scrollbar">
+      {/* Control Bar - Standardized Pill Nav */}
+      <div className="bg-white dark:bg-slate-900 !p-1.5 flex flex-col lg:flex-row items-center justify-between gap-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm my-4">
+        <div className="flex flex-wrap gap-1 w-full lg:w-auto overflow-x-auto no-scrollbar">
           {[
-            { id: 'monthly', label: 'MONTHLY' },
-            { id: 'sewing', label: 'SWING' },
-            { id: 'stone', label: 'STONE' },
-            { id: 'office', label: 'OFFICE' },
-            { id: 'admin', label: 'ADMIN' },
-            { id: 'cutting', label: 'CUTTING' },
-            { id: 'pata', label: 'PATA HUB' }
+            { id: 'monthly', label: 'মাসিক স্টাফ (Monthly)' },
+            { id: 'office', label: 'অফিস (Office)' },
+            { id: 'cutting', label: 'কাটিং মাস্টার (Cutting)' },
+            { id: 'pata', label: 'পাতা স্টাফ (Pata)' }
           ].map(dept => (
             <button
               key={dept.id}
               onClick={() => setSelectedDepartment(dept.id)}
-              className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${selectedDepartment === dept.id ? 'bg-slate-950 text-white shadow-xl dark:bg-white dark:text-black' : 'text-[var(--text-muted)] hover:text-black dark:hover:text-white'}`}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${selectedDepartment === dept.id ? 'bg-slate-950 text-white shadow-lg' : 'text-black dark:text-white hover:text-black dark:text-white dark:hover:text-white'}`}
             >
               {dept.label}
             </button>
           ))}
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto px-2">
-          <div className="relative group flex-1 md:flex-none">
-            <Calendar size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+        <div className="flex items-center gap-3 w-full lg:w-auto">
+          <div className="relative group flex-1 lg:flex-none">
+            <Calendar size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-black dark:text-white" />
             <input
               type="date"
-              className="premium-input !pl-11 !h-11 !text-[11px] !bg-slate-50 dark:!bg-slate-800/20 !w-full md:!w-44"
+              className="premium-input !pl-11 !h-11 !text-[10px] !bg-slate-50 dark:!bg-slate-800/50"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
             />
@@ -509,14 +485,14 @@ const AttendancePanel = ({
             <div className="flex gap-2">
               <button 
                 onClick={() => setShowInvoice(true)} 
-                className="w-11 h-11 action-btn-secondary !p-0 !rounded-xl"
+                className="w-11 h-11 bg-slate-950 text-white rounded-xl shadow-lg flex items-center justify-center hover:bg-slate-800 transition-all"
                 title="সাপ্তাহিক রিপোর্ট"
               >
                 <Printer size={16} />
               </button>
               <button 
                 onClick={() => setShowQR(true)} 
-                className="w-11 h-11 action-btn-primary !p-0 !rounded-xl shadow-blue-500/20"
+                className="w-11 h-11 bg-blue-600 text-white rounded-xl shadow-lg border border-blue-500 flex items-center justify-center hover:bg-blue-700 transition-all"
                 title="কিউআর স্ক্যান"
               >
                 <Camera size={16} />
@@ -526,10 +502,12 @@ const AttendancePanel = ({
         </div>
       </div>
 
+
+
       {showQR && <QRScanner onScanSuccess={handleQRScan} onClose={() => setShowQR(false)} />}
 
       {/* Main Attendance List */}
-      <div className="grid grid-cols-1 gap-2.5">
+      <div className="grid grid-cols-1 gap-4">
         {workers.filter(w => {
              const role = user?.role?.toLowerCase();
              if (role === 'admin' || role === 'manager') return true;
@@ -541,103 +519,76 @@ const AttendancePanel = ({
             const wage = workerDoc?.wage || getWorkerWage(worker);
             
             return (
-              <div key={idx} className="saas-card flex flex-col md:flex-row justify-between items-center gap-4 group !p-4 md:!p-5 hover:border-black transition-all animate-fade-up">
-                <div className="flex items-center gap-4 flex-1 w-full md:w-auto">
-                  <div className="w-10 h-10 bg-slate-950 text-white dark:bg-white dark:text-black flex items-center justify-center text-lg font-black rounded-xl shadow-xl transition-transform group-hover:scale-105">
+              <div key={idx} className="saas-card flex flex-col md:flex-row justify-between items-center gap-6 group hover:border-slate-950 dark:hover:border-white transition-all animate-fade-up">
+                <div className="flex items-center gap-5 flex-1 w-full md:w-auto">
+                  <div className="w-14 h-14 bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-2xl font-bold rounded-xl border border-slate-100 dark:border-slate-700 transition-transform group-hover:scale-105">
                     {worker[0].toUpperCase()}
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     <div className="flex items-center gap-3">
-                        <h4 className="text-lg font-black tracking-tighter text-black dark:text-white uppercase leading-tight italic truncate max-w-[150px] md:max-w-[250px]">
-                          <SafeText data={worker} />
-                        </h4>
-                        {workerId && <span className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/10 text-blue-600 text-[8px] font-black rounded border border-blue-100 dark:border-blue-800">REF:<SafeText data={workerId} /></span>}
+                        <h4 className="text-xl font-bold tracking-tight text-black dark:text-white uppercase leading-none">{worker}</h4>
+                        {workerId && <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 text-[9px] font-bold rounded-md border border-emerald-100 dark:border-emerald-800">ID: {workerId}</span>}
                     </div>
-                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none flex items-center gap-2 italic">
-                       <DollarSign size={10} className="text-emerald-500" /> <SafeText data={wage} /> (DAILY RATE)
+                    <p className="text-black dark:text-white text-[10px] font-bold uppercase tracking-widest leading-none mt-1 flex items-center gap-1.5 italic">
+                       <DollarSign size={10} /> দৈনিক মজুরি: ৳{wage.toLocaleString()} (Daily Wage)
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-end">
-                  <div className="flex p-0.5 bg-slate-50 dark:bg-slate-800/50 rounded-lg gap-1 border border-slate-100/50">
+                <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                  <div className="flex p-1 bg-slate-50 dark:bg-slate-800/50 rounded-xl gap-1">
                     {(user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'manager') ? (
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => markAttendance(worker, "present")}
-                          className={`px-3 py-1.5 rounded-md text-[8.5px] font-black uppercase tracking-widest transition-all ${status === "present" ? "bg-slate-950 text-white shadow-md" : "text-black dark:text-white"}`}
-                        >
-                          FULL
-                        </button>
-                        <div className="flex flex-col gap-1">
-                            <button
-                                onClick={() => markAttendance(worker, "late")}
-                                className={`px-3 py-1.5 rounded-md text-[8.5px] font-black uppercase tracking-widest transition-all ${status === "late" ? "bg-amber-500 text-white shadow-md" : "text-black dark:text-white"}`}
-                            >
-                                LATE
-                            </button>
-                            {status === 'late' && (
-                                <button 
-                                    onClick={() => {
-                                        setMasterData(prev => ({
-                                            ...prev,
-                                            attendance: prev.attendance.map(a => 
-                                                (a.date === selectedDate && a.worker === worker && a.department === selectedDepartment)
-                                                ? { ...a, penaltyVoid: !a.penaltyVoid, wage: !a.penaltyVoid ? getWorkerWage(worker) : Math.round(getWorkerWage(worker) * 0.9) }
-                                                : a
-                                            )
-                                        }));
-                                    }}
-                                    className={`text-[6px] font-black uppercase tracking-tighter px-1 py-0.5 rounded ${masterData.attendance.find(a => a.date === selectedDate && a.worker === worker && a.department === selectedDepartment)?.penaltyVoid ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}
-                                >
-                                    {masterData.attendance.find(a => a.date === selectedDate && a.worker === worker && a.department === selectedDepartment)?.penaltyVoid ? 'VOIDED' : 'FORGIVE?'}
-                                </button>
-                            )}
-                        </div>
-                        <button
-                          onClick={() => markAttendance(worker, "half-day")}
-                          className={`px-3 py-1.5 rounded-md text-[8.5px] font-black uppercase tracking-widest transition-all ${status === "half-day" ? "bg-blue-500 text-white shadow-md" : "text-black dark:text-white"}`}
-                        >
-                          HALF
-                        </button>
-                        <button
-                          onClick={() => markAttendance(worker, "absent")}
-                          className={`px-3 py-1.5 rounded-md text-[8.5px] font-black uppercase tracking-widest transition-all ${status === "absent" ? "bg-rose-500 text-white shadow-md" : "text-black dark:text-white"}`}
-                        >
-                          ABSENT
-                        </button>
-                      </div>
+                      <>
+                        {[
+                          { id: "present", label: "FULL" },
+                          { id: "half-day", label: "HALF" },
+                          { id: "absent", label: "ABSENT" }
+                        ].map((s) => (
+                          <button
+                            key={s.id}
+                            onClick={() => markAttendance(worker, s.id)}
+                            className={`px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${
+                                status === s.id 
+                                ? (s.id === "present" ? "bg-slate-950 text-white shadow-lg" : s.id === "half-day" ? "bg-amber-500 text-white shadow-lg" : "bg-rose-500 text-white shadow-lg") 
+                                : "text-black dark:text-white hover:text-black dark:text-white dark:hover:text-white"
+                            }`}
+                          >
+                            {s.label}
+                          </button>
+                        ))}
+                      </>
                     ) : (
-                      <div className={`px-4 py-1.5 rounded-lg text-[8.5px] font-bold uppercase tracking-widest ${status === 'present' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                          {status === 'present' ? 'PRESENT' : status === 'late' ? 'LATE' : status === 'half-day' ? 'HALF' : 'ABSENT'}
+                      <div className={`px-6 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest ${status === 'present' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                          স্ট্যাটাস: {status === 'present' ? 'PRESENT' : status === 'half-day' ? 'HALF-DAY' : 'ABSENT'}
                       </div>
                     )}
                   </div>
                   
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-2">
                     {(user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'manager') && (
                        <button 
                           onClick={() => registerBiometric(worker)}
-                          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-all border border-slate-200 dark:border-slate-800 ${masterData.workerBiometrics?.[worker] ? 'bg-emerald-500 text-white shadow-md border-none' : 'bg-white dark:bg-slate-800 text-slate-300 hover:text-black dark:text-white dark:hover:text-white'}`}
-                          title="FINGERPRINT"
+                          className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all border border-slate-200 dark:border-slate-800 ${masterData.workerBiometrics?.[worker] ? 'bg-emerald-500 text-white shadow-lg border-none' : 'bg-white dark:bg-slate-800 text-slate-300 hover:text-black dark:text-white dark:hover:text-white'}`}
+                          title="ফিঙ্গারপ্রিন্ট রেজিস্টার"
                       >
-                          <Fingerprint size={14} />
+                          <Fingerprint size={16} />
                       </button>
                     )}
                     <button 
                         onClick={() => {
                             const phone = workerDoc?.phone || "8801700000000";
-                            const msg = `সালাম ${worker},\nআপনার আজকের হাজিরা [${status.toUpperCase()}]।\nধন্যবাদ - NRZOONE`;
+                            const msg = `সালাম ${worker},\nআপনার আজকের হাজিরা [${status.toUpperCase()}] হিসেবে রেকর্ড করা হয়েছে।\nধন্যবাদ - NRZOONE`;
                             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
                         }}
-                        className="w-9 h-9 flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all border border-slate-200 dark:border-slate-800 shadow-sm"
+                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-white dark:bg-slate-800 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all border border-slate-200 dark:border-slate-800 shadow-sm"
                     >
-                        <MessageCircle size={14} />
+                        <MessageCircle size={16} />
                     </button>
                   </div>
                 </div>
               </div>
             );
+
         })}
       </div>
 
