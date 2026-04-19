@@ -361,9 +361,9 @@ export const translations = {
         clientledger: "ক্লায়েন্ট লেজার",
         accounts_treasury: "ট্রেজারি (ক্যাশ)",
         accounts_partners: "অংশীদার (বি২বি)",
-        accounts_workforce: "শ্রমিক (লেজার)",
-        accounts_analytics: "রিপোর্ট (অ্যানালিটিক্স)",
-        accounts_system: "সিস্টেম (নিরাপত্তা)"
+        accounts_workforce: "কারিগর লেজার",
+        accounts_analytics: "অডিট রিপোর্ট (Reports)",
+        accounts_system: "সিস্টেম সিকিউরিটি"
     }
 };
 

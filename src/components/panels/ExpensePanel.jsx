@@ -26,8 +26,6 @@ import {
    ShieldCheck,
    Database
 } from "lucide-react";
-import WorkerSummary from "../WorkerSummary";
-import BusinessIntel from "../BusinessIntel";
 import NRZLogo from "../NRZLogo";
 
 const ExpensePanel = ({
@@ -40,6 +38,8 @@ const ExpensePanel = ({
    t,
    logAction,
    onSyncGoogle,
+   logs,
+   SafeText,
 }) => {
    const role = user?.role?.toLowerCase();
    const isAdmin = role === "admin";
@@ -60,27 +60,28 @@ const ExpensePanel = ({
    const cashEntries = masterData.cashEntries || [];
 
    // Balance Logic: Source of TRUTH is cashEntries and expenses
-   const totalCashIn = (cashEntries || []).reduce((sum, entry) => sum + Number(entry.amount), 0);
-   const totalExpenses = (expenses || []).reduce((sum, entry) => sum + Number(entry.amount), 0);
+   const totalCashIn = React.useMemo(() => (cashEntries || []).reduce((sum, entry) => sum + Number(entry.amount), 0), [cashEntries]);
+   const totalExpenses = React.useMemo(() => (expenses || []).reduce((sum, entry) => sum + Number(entry.amount), 0), [expenses]);
    const currentBalance = totalCashIn - totalExpenses;
 
-   const filteredExpenses = expenses.filter((e) => {
-      const matchesDate = cashSubTab === "daily" ? e.date === summaryDate : true;
-      const matchesSearch = !searchTerm || e.description.toLowerCase().includes(searchTerm.toLowerCase()) || e.category.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesDate && matchesSearch;
-   });
-
-   const dailyTotal = filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
-
-   const clientBalances = (masterData.clients || []).map(client => {
-      let billed = 0;
-      let paid = 0;
-      (masterData.clientTransactions || []).filter(t => t.client === client).forEach(t => {
-         if (t.type === 'BILL') billed += Number(t.amount);
-         if (t.type === 'PAYMENT') paid += Number(t.amount);
+   const filteredExpenses = React.useMemo(() => {
+      return expenses.filter((e) => {
+         const matchesDate = cashSubTab === "daily" ? e.date === summaryDate : true;
+         const matchesSearch = !searchTerm || e?.description?.toLowerCase().includes(searchTerm.toLowerCase()) || e?.category?.toLowerCase().includes(searchTerm.toLowerCase());
+         return matchesDate && matchesSearch;
       });
-      return { client, billed, paid, due: billed - paid };
-   }).sort((a, b) => b.due - a.due);
+   }, [expenses, cashSubTab, summaryDate, searchTerm]);
+
+   const dailyTotal = React.useMemo(() => filteredExpenses.reduce((sum, e) => sum + Number(e.amount), 0), [filteredExpenses]);
+
+   const clientBalances = React.useMemo(() => {
+      return (masterData.clients || []).map(client => {
+         const txs = (masterData.clientTransactions || []).filter(t => t.client === client);
+         const billed = txs.reduce((sum, t) => t.type === 'BILL' ? sum + Number(t.amount) : sum, 0);
+         const paid = txs.reduce((sum, t) => t.type === 'PAYMENT' ? sum + Number(t.amount) : sum, 0);
+         return { client, billed, paid, due: billed - paid };
+      }).sort((a, b) => b.due - a.due);
+   }, [masterData.clients, masterData.clientTransactions]);
 
    const handleUpdateExpense = (e) => {
       e.preventDefault();
@@ -180,7 +181,7 @@ const ExpensePanel = ({
                   </div>
                   <div className="mt-24 flex justify-between items-center opacity-40 italic font-black text-[12px] uppercase">
                      <div className="space-y-2"><p className="mb-4">Authorized Signature</p><div className="w-64 h-1 bg-black"></div></div>
-                     <p className="tracking-[0.8em]">Elite ERP v5.2 // Factory Hub Secure</p>
+                     <p className="tracking-[0.8em]">NRZONE Factory System</p>
                   </div>
                </div>
             </div>
@@ -191,20 +192,21 @@ const ExpensePanel = ({
    return (
       <div className="space-y-12 animate-fade-in no-scrollbar transition-all duration-1000">
          {/* 🚀 Master Navigation Hub */}
-         <div className="bg-white dark:bg-slate-900 !p-2 rounded-[2.5rem] border-2 border-slate-100 dark:border-slate-800 shadow-3xl flex flex-wrap gap-2 sticky top-0 z-50 backdrop-blur-3xl bg-white/80 dark:bg-slate-900/80">
+         <div className="bg-white dark:bg-slate-900 !p-2 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm flex flex-wrap gap-2 sticky top-0 z-50 backdrop-blur-3xl bg-white/80 dark:bg-slate-900/80">
             {[
-               { id: 'treasury', label: 'Treasury (ক্যাশ)', icon: Wallet },
-               { id: 'partners', label: 'Partners (বি২বি)', icon: Users },
-               { id: 'workforce', label: 'Workforce (শ্রমিক)', icon: UserCheck },
-               { id: 'analytics', label: 'Analytics (রিপোর্ট)', icon: TrendingUp },
-               { id: 'system', label: 'System (নিরাপত্তা)', icon: ShieldCheck }
-            ].map(tab => (
+               { id: 'treasury', label: 'ট্রেজারি (ক্যাশ)', icon: Wallet },
+               { id: 'workforce', label: 'কারিগর লেজার', icon: UserCheck },
+               { id: 'analytics', label: 'অডিট ও রিপোর্ট', icon: TrendingUp }
+            ].filter(tab => {
+               if (role === 'worker') return tab.id === 'workforce';
+               return true;
+            }).map(tab => (
                <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-3 px-6 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all duration-500 ${activeTab === tab.id ? 'bg-slate-950 text-white shadow-xl scale-105' : 'text-slate-400 hover:text-black dark:hover:text-white'}`}
+                  className={`flex items-center gap-3 px-6 py-3 rounded-xl font-black uppercase text-[9px] tracking-widest transition-all ${activeTab === tab.id ? 'bg-slate-950 text-white shadow-md scale-105' : 'text-slate-400 hover:text-black dark:hover:text-white'}`}
                >
-                  <tab.icon size={16} className={activeTab === tab.id ? 'animate-pulse' : ''} /> {tab.label}
+                  <tab.icon size={14} className={activeTab === tab.id ? 'animate-pulse' : ''} /> {tab.label}
                </button>
             ))}
          </div>
@@ -331,16 +333,12 @@ const ExpensePanel = ({
 
          {activeTab === "workforce" && (
             <div className="animate-fade-up">
-               <WorkerSummary
-                  masterData={masterData}
-                  setMasterData={setMasterData}
-                  showNotify={showNotify}
-                  user={user}
-                  t={t}
-                  logAction={logAction}
-                  setActivePanel={setActivePanel}
-                  SafeText={SafeText}
-               />
+               <div className="bg-slate-950 p-10 rounded-[3rem] text-white shadow-2xl relative overflow-hidden group mb-10">
+                  <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:scale-110 transition-transform"><UserCheck size={160} /></div>
+                  <h2 className="text-4xl font-black tracking-tighter italic uppercase mb-2">Centralized Disbursement</h2>
+                  <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.5em] italic">Pay any worker from any department instantly</p>
+               </div>
+               <div className="py-20 text-center opacity-20 italic font-black uppercase tracking-widest">Workforce Ledger moved to individual factories</div>
             </div>
          )}
 
@@ -357,7 +355,7 @@ const ExpensePanel = ({
                      <Database size={24} className="group-hover:animate-spin" /> GOOGLE SHEETS SYNC
                   </button>
                </div>
-               <BusinessIntel masterData={masterData} SafeText={SafeText} />
+               <div className="py-20 text-center opacity-20 italic font-black uppercase tracking-widest">Business Analytics consolidated in Treasury</div>
                <div className="saas-card !p-12 bg-slate-950 dark:bg-slate-950 text-white flex flex-col items-center justify-center gap-10 rounded-[3.5rem] relative overflow-hidden shadow-2xl">
                   <div className="absolute inset-0 bg-[radial-gradient(#ffffff05_1px,transparent_1px)] bg-[size:40px_40px] opacity-40"></div>
                   <Activity size={64} className="text-blue-600 animate-pulse" />
@@ -381,9 +379,9 @@ const ExpensePanel = ({
                         <div className="space-y-4 max-h-[600px] overflow-y-auto pr-6 no-scrollbar">
                            {(masterData.auditLogs || logs).slice(0, 100).map((log, i) => (
                               <div key={i} className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-[2rem] border-2 border-white dark:border-slate-700 shadow-xl hover:border-black dark:hover:border-white transition-all group flex flex-col gap-4 scale-95 hover:scale-100 duration-500">
-                                 <div className="flex justify-between items-center"><span className="px-4 py-1.5 bg-slate-950 text-white dark:bg-white dark:text-black rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg group-hover:bg-blue-600 transition-colors">{log.action}</span><p className="text-[10px] font-black text-slate-400 font-mono tracking-tighter italic tabular-nums">{new Date(log.timestamp).toLocaleString()}</p></div>
-                                 <p className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase italic leading-none tracking-tighter">{log.details}</p>
-                                 <div className="flex items-center gap-3 mt-1 pt-6 border-t border-slate-200 dark:border-slate-700"><div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-lg italic">{log.user?.[0]?.toUpperCase() || 'A'}</div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{log.user.toUpperCase()} // ROLE: {log.role || 'ADMIN'}</p></div>
+                                 <div className="flex justify-between items-center"><span className="px-4 py-1.5 bg-slate-950 text-white dark:bg-white dark:text-black rounded-lg text-[9px] font-black uppercase tracking-widest shadow-lg group-hover:bg-blue-600 transition-colors"><SafeText data={log.action} /></span><p className="text-[10px] font-black text-slate-400 font-mono tracking-tighter italic tabular-nums">{new Date(log.timestamp).toLocaleString()}</p></div>
+                                 <p className="text-xl font-black text-slate-900 dark:text-slate-100 uppercase italic leading-none tracking-tighter"><SafeText data={log.details} /></p>
+                                 <div className="flex items-center gap-3 mt-1 pt-6 border-t border-slate-200 dark:border-slate-700"><div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-[10px] font-black text-white shadow-lg italic">{log.user?.[0]?.toUpperCase() || 'A'}</div><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic"><SafeText data={log.user} /> // ROLE: <SafeText data={log.role || 'ADMIN'} /></p></div>
                               </div>
                            ))}
                            {(masterData.auditLogs || logs).length === 0 && <div className="py-40 text-center opacity-10 flex flex-col items-center italic font-black uppercase tracking-[1em]"><ShieldCheck size={100} className="mb-10 text-black dark:text-white" /> VAULT EMPTY</div>}

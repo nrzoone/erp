@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { db } from '../firebase';
 import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 
@@ -38,7 +38,12 @@ const initialData = {
     pataTypes: ["Single", "Double", "Triple", "Mix"],
     pataStoneColors: ["White", "Golden", "Black", "Silver", "Multi", "Rainbow"],
     users: [
-        { id: "NRZONE", password: "Irham@#", role: "admin", name: "Super Admin" },
+        { id: "ADMIN", password: "admin123", role: "admin", name: "Super Admin" },
+        { id: "MANAGER", password: "manager123", role: "manager", name: "Manager" },
+    ],
+    workerDocs: [
+        { workerId: "WORKER1", password: "worker123", role: "worker", name: "Worker 1", dept: "sewing" },
+        { workerId: "WORKER2", password: "worker222", role: "worker", name: "Worker 2", dept: "stone" },
     ],
     clients: [],
     cuttingStock: [],
@@ -55,7 +60,6 @@ const initialData = {
     adminNotes: [],
     cutters: [],
     notifications: [],
-    workerDocs: [],
     workerAdvances: [],
     clientTransactions: [],
     settings: { logo: "", whatsappNumber: "" },
@@ -73,9 +77,8 @@ const initialData = {
     },
     rolePermissions: {
         admin: ["*"],
-        manager: ["overview", "productions", "inventory", "attendance", "outside", "reports"],
-        accountant: ["overview", "expenses", "payments", "reports"],
-        worker: ["overview", "productions"]
+        manager: ["Overview", "Accounts"], // Dashboard + Expense entry
+        worker: ["Overview"] // Only own work/balance logic is handled in components
     }
 };
 
@@ -165,19 +168,14 @@ export const useMasterData = (user) => {
                                 }
                             });
 
-                            // 2. Ironclad Merger: Ensure local state that is richer than cloud is NOT dropped
+                            // 2. State Sync: Trust cloud state but preserve object-level merges for settings
                             const allKeys = Object.keys(prev);
                             allKeys.forEach(key => {
-                                if (initialData[key] === undefined) return; // Skip non-schema keys
-                                
+                                if (initialData[key] === undefined) return;
                                 const localVal = prev[key];
                                 const cloudVal = merged[key];
 
-                                if (Array.isArray(localVal) && localVal.length > 0) {
-                                    if (!Array.isArray(cloudVal) || cloudVal.length < localVal.length) {
-                                        merged[key] = localVal;
-                                    }
-                                } else if (localVal && typeof localVal === 'object' && !Array.isArray(localVal)) {
+                                if (localVal && typeof localVal === 'object' && !Array.isArray(localVal)) {
                                      merged[key] = { ...localVal, ...cloudVal };
                                 }
                             });
@@ -286,7 +284,7 @@ export const useMasterData = (user) => {
         return () => clearTimeout(timer);
     }, [logs]);
 
-    const logAction = (user, action, details) => {
+    const logAction = useCallback((user, action, details) => {
         const newLog = {
             timestamp: new Date().toISOString(),
             user: user?.name || user?.id || 'System',
@@ -295,9 +293,9 @@ export const useMasterData = (user) => {
             details
         };
         setLogs(prev => [newLog, ...prev].slice(0, 499));
-    };
+    }, []);
 
-    const downloadBackup = () => {
+    const downloadBackup = useCallback(() => {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ ...masterData, auditLogs: logs }));
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
@@ -305,7 +303,7 @@ export const useMasterData = (user) => {
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
-    };
+    }, [masterData, logs]);
 
     return { masterData, setMasterData, isLoading, syncStatus, logAction, logs, downloadBackup };
 };

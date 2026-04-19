@@ -31,6 +31,7 @@ const AttendancePanel = ({
   setActivePanel,
   t,
   logAction,
+  SafeText,
 }) => {
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0],
@@ -53,12 +54,24 @@ const AttendancePanel = ({
   };
 
   const workers = useMemo(() => {
+    if (selectedDepartment === 'all') {
+      const all = [];
+      Object.values(masterData.workerCategories || {}).forEach(list => {
+        list.forEach(w => {
+          if (!all.includes(w)) all.push(w);
+        });
+      });
+      return all;
+    }
     return masterData.workerCategories?.[selectedDepartment] || [];
   }, [masterData.workerCategories, selectedDepartment]);
 
-  const getWorkerWage = (worker) => {
+  const getWorkerWage = (worker, dept) => {
+    const targetDept = dept || selectedDepartment;
+    if (targetDept !== 'monthly') return 0; // Only monthly workers get wages here
+    
     const monthlySalary =
-      masterData.workerWages?.[selectedDepartment]?.[worker] || 0;
+      masterData.workerWages?.[targetDept]?.[worker] || 0;
     return Math.round(monthlySalary / 30);
   };
 
@@ -67,22 +80,30 @@ const AttendancePanel = ({
       (a) =>
         a.date === selectedDate &&
         a.worker === worker &&
-        a.department === selectedDepartment,
+        (selectedDepartment === 'all' || a.department === selectedDepartment),
     );
     return record?.status || "absent";
   };
 
   const markAttendance = (worker, status) => {
     setMasterData((prev) => {
+      // Find worker's actual department if in 'all' view
+      let actualDept = selectedDepartment;
+      if (selectedDepartment === 'all') {
+        actualDept = Object.keys(prev.workerCategories || {}).find(key => 
+          prev.workerCategories[key].includes(worker)
+        ) || 'monthly';
+      }
+
       const existingIndex = (prev.attendance || []).findIndex(
         (a) =>
           a.date === selectedDate &&
           a.worker === worker &&
-          a.department === selectedDepartment,
+          a.department === actualDept,
       );
 
       let newAttendance = [...(prev.attendance || [])];
-      const dailyWage = getWorkerWage(worker);
+      const dailyWage = getWorkerWage(worker, actualDept);
 
       let effectiveWage = 0;
       if (status === "present") effectiveWage = dailyWage;
@@ -101,7 +122,7 @@ const AttendancePanel = ({
           id: Date.now(),
           date: selectedDate,
           worker,
-          department: selectedDepartment,
+          department: actualDept,
           status,
           wage: effectiveWage,
           markedAt: new Date().toISOString(),
@@ -109,11 +130,11 @@ const AttendancePanel = ({
         });
       }
 
-      if (status !== "absent") {
+      if (status !== "absent" && effectiveWage > 0) {
         syncToSheet({
           type: "ATTENDANCE_MARK",
           worker,
-          detail: `${selectedDepartment}: ${status}`,
+          detail: `${actualDept}: ${status}`,
           amount: effectiveWage,
         });
       }
@@ -192,7 +213,7 @@ const AttendancePanel = ({
 
   const todayAttendance = useMemo(() => {
     return (masterData.attendance || []).filter(
-      (a) => a.date === selectedDate && a.department === selectedDepartment,
+      (a) => a.date === selectedDate && (selectedDepartment === 'all' || a.department === selectedDepartment),
     );
   }, [masterData.attendance, selectedDate, selectedDepartment]);
 
@@ -455,6 +476,7 @@ const AttendancePanel = ({
       <div className="bg-white dark:bg-slate-900 !p-1.5 flex flex-col lg:flex-row items-center justify-between gap-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm my-4">
         <div className="flex flex-wrap gap-1 w-full lg:w-auto overflow-x-auto no-scrollbar">
           {[
+            { id: 'all', label: 'সব কর্মী (All)' },
             { id: 'monthly', label: 'মাসিক স্টাফ (Monthly)' },
             { id: 'office', label: 'অফিস (Office)' },
             { id: 'cutting', label: 'কাটিং মাস্টার (Cutting)' },
@@ -530,7 +552,8 @@ const AttendancePanel = ({
                         {workerId && <span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 text-[9px] font-bold rounded-md border border-emerald-100 dark:border-emerald-800">ID: {workerId}</span>}
                     </div>
                     <p className="text-black dark:text-white text-[10px] font-bold uppercase tracking-widest leading-none mt-1 flex items-center gap-1.5 italic">
-                       <DollarSign size={10} /> দৈনিক মজুরি: ৳{wage.toLocaleString()} (Daily Wage)
+                       <DollarSign size={10} /> 
+                       {wage > 0 ? `দৈনিক মজুরি: ৳${wage.toLocaleString()} (Salary Calculation Active)` : 'হাজিরা রেকর্ড: (No Salary Calculation)'}
                     </p>
                   </div>
                 </div>

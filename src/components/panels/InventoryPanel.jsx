@@ -26,6 +26,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { syncToSheet } from "../../utils/syncUtils";
 import { getFinishedStock, getSewingStock, getFinishingStock } from "../../utils/calculations";
+import QRScanner from "../QRScanner";
 
 const InventoryPanel = ({
   masterData,
@@ -34,12 +35,14 @@ const InventoryPanel = ({
   setActivePanel,
   t,
   user,
-  logAction
+  logAction,
+  SafeText
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [transactionType, setTransactionType] = useState("in"); // 'in' or 'out'
   const [view, setView] = useState("overview"); // 'overview', 'raw', 'add'
+  const [showQR, setShowQR] = useState(false);
   const [showAIScan, setShowAIScan] = useState(false);
   const [identifying, setIdentifying] = useState(false);
 
@@ -143,17 +146,7 @@ const InventoryPanel = ({
             qtyBorka: qtyB,
             qtyHijab: qtyH,
             note: form.note?.value || ""
-        }, ...(prev.deliveries || [])],
-        cuttingStock: (prev.cuttingStock || []).map(lot => {
-          if (lot.design === form.design.value && lot.color === (form.color.value || "") && lot.size === (form.size.value || "")) {
-            return {
-              ...lot,
-              borka: Math.max(0, lot.borka - qtyB),
-              hijab: Math.max(0, lot.hijab - qtyH)
-            };
-          }
-          return lot;
-        })
+        }, ...(prev.deliveries || [])]
     }));
     showNotify("পণ্য ডেলিভারি সম্পন্ন হয়েছে!");
     form.reset();
@@ -182,8 +175,8 @@ const InventoryPanel = ({
 
         <div className="flex items-center gap-4 w-full md:w-auto">
           <button 
-            onClick={() => { setShowAIScan(true); setIdentifying(true); setTimeout(()=>setIdentifying(false), 2000); }}
-            className="w-12 h-12 bg-slate-950 text-white rounded-xl flex items-center justify-center hover:bg-black transition-all shadow-xl group border border-white/10"
+            onClick={() => setShowQR(true)}
+            className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center hover:bg-black transition-all shadow-xl group border border-white/10"
           >
             <Camera size={20} />
           </button>
@@ -293,8 +286,6 @@ const InventoryPanel = ({
                                   <h4 className="text-lg font-bold tracking-tight text-black dark:text-white dark:text-white uppercase truncate">
                                       {item.name}
                                   </h4>
-                                  {item.client !== 'FACTORY' && <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-600 rounded text-[8px] font-black uppercase tracking-widest">B2B: {item.client}</span>}
-                                  {item.client === 'FACTORY' && <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-[8px] font-black uppercase tracking-widest">FACTORY</span>}
                                 </div>
                                 <p className="text-[9px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-6 italic truncate">
                                     {item.color || "STANDARD GRADE"}
@@ -320,11 +311,15 @@ const InventoryPanel = ({
                     <h3 className="text-2xl font-bold uppercase tracking-tight text-black dark:text-white dark:text-white mb-6">নতুন ডেসপ্যাচ <span className="text-blue-600">(Dispatch)</span></h3>
                     <form onSubmit={handleDelivery} className="space-y-6">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest ml-1">ক্লায়েন্টের নাম (Client / Receiver)</label>
-                            <select name="receiver" className="premium-input !h-12 text-sm uppercase font-bold" required>
-                                <option value="">ক্লায়েন্ট নির্বাচন করুন...</option>
-                                {(masterData.clients || []).map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
+                            <label className="text-[10px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest ml-1">ক্লায়েন্টের নাম (Select Client / Party)</label>
+                            <div className="relative group">
+                                <Users className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={16} />
+                                <select name="receiver" className="premium-input !pl-12 !h-14 text-sm uppercase font-black italic bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800" required>
+                                    <option value="">ক্লায়েন্ট নির্বাচন করুন (Required)</option>
+                                    {(masterData.clients || []).map(c => <option key={c} value={c}>{c}</option>)}
+                                    <option value="CASH_PARTY">নগদ কাস্টমার (Cash Party)</option>
+                                </select>
+                            </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-1.5">
@@ -360,7 +355,9 @@ const InventoryPanel = ({
                             </div>
                         </div>
                         <div className="pt-6">
-                            <button type="submit" className="w-full py-5 rounded-2xl bg-blue-600 border-b-4 border-blue-800 text-white font-bold uppercase text-[11px] tracking-[0.2em] shadow-xl hover:bg-blue-700 active:scale-95 transition-all">ডেলিভারি কনফার্ম করুন (Confirm)</button>
+                            <button type="submit" className="w-full py-6 rounded-2xl bg-slate-950 text-white font-black uppercase text-[12px] tracking-[0.3em] shadow-2xl hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-4">
+                                <ShieldCheck size={20} /> ডেলিভারি কনফার্ম করুন (Confirm)
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -631,6 +628,18 @@ const InventoryPanel = ({
             </div>
         )}
       </AnimatePresence>
+      {showQR && (
+         <div className="fixed inset-0 z-[2000] bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl relative border-4 border-white/10 italic">
+               <button onClick={() => setShowQR(false)} className="absolute top-8 right-8 text-slate-400 z-50"><X size={32} /></button>
+               <div className="p-10 text-center">
+                  <h2 className="text-3xl font-black uppercase italic mb-2">SCAN <span className="text-blue-600">INVENTORY</span></h2>
+                  <p className="text-[10px] font-black uppercase opacity-40 tracking-widest mb-10">Locate Stock Metrics Instantly</p>
+                  <QRScanner onScan={(data) => { setSearchTerm(data); setShowQR(false); showNotify("Found Item!"); }} />
+               </div>
+            </div>
+         </div>
+      )}
     </div>
   );
 };

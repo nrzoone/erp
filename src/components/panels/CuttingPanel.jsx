@@ -21,13 +21,15 @@ import {
   TrendingDown,
   Clock,
   Check,
-  Calendar
+  Calendar,
+  Camera
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getStock, getSewingStock } from "../../utils/calculations";
 import { syncToSheet } from "../../utils/syncUtils";
 import NRZLogo from "../NRZLogo";
 import UniversalSlip from "../UniversalSlip";
+import QRScanner from "../QRScanner";
 
 const CuttingPanel = ({
   masterData,
@@ -37,45 +39,13 @@ const CuttingPanel = ({
   setActivePanel,
   t,
   logAction,
+  SafeText,
 }) => {
-  const [activeTab, setActiveTab] = useState("Incoming Orders"); // Incoming Orders, Cutting Queue, History
+  const [activeTab, setActiveTab] = useState("Cutting Queue"); // Cutting Queue, History
 
-  const incomingOrders = useMemo(() => {
-    return (masterData.productionRequests || []).filter(r => r.status === 'Pending Review' || r.status === 'In Cutting');
-  }, [masterData.productionRequests]);
-
-  const handleAcceptOrder = (order) => {
-    const lotNo = prompt("এ অর্ডারের জন্য লট নাম্বার দিন (Enter Lot Number):", order.lotNo || nextLotNo);
-    if (!lotNo) return;
-
-    setMasterData(prev => {
-        // We use the already deducted fabric from productionRequests submission
-        // But we add it to cuttingStock as a live lot
-        const newLot = {
-            id: `B2B_${order.id}`,
-            lotNo,
-            date: new Date().toLocaleDateString("en-GB"),
-            design: order.design,
-            client: order.client,
-            color: 'MIX',
-            borka: order.totalBorka || 0,
-            hijab: order.totalHijab || 0,
-            fabricGoj: order.fabricGoj || 0,
-            status: 'In Cutting',
-            stage: 'Cutting'
-        };
-
-        return {
-            ...prev,
-            cuttingStock: [newLot, ...(prev.cuttingStock || [])],
-            productionRequests: (prev.productionRequests || []).map(r => r.id === order.id ? { ...r, status: 'In Cutting', lotNo } : r)
-        };
-    });
-    showNotify(`B2B অর্ডার লট #${lotNo}-এ যুক্ত হয়েছে!`, "success");
-    logAction(user, 'B2B_ORDER_ACCEPT', `${order.client} এর (${order.design}) অর্ডারটি লট #${lotNo}-এ এক্সেপ্ট করা হয়েছে।`);
-  };
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showQR, setShowQR] = useState(false);
 
   // Derived Stats
   const stats = useMemo(() => {
@@ -302,8 +272,6 @@ const CuttingPanel = ({
       <div className="bg-white dark:bg-slate-900 !p-1.5 flex flex-col lg:flex-row items-center justify-between gap-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm mb-6">
         <div className="flex flex-wrap gap-1 w-full lg:w-auto overflow-x-auto no-scrollbar">
           {[
-            { id: "Incoming Orders", label: "ইনকামিং অর্ডার (B2B Incoming)" },
-            { id: "Design Registration", label: "ডিজাইন এন্ট্রি (Registration)" },
             { id: "Cutting Queue", label: "কাটিং কিউ (Queue)" },
             { id: "Production Status", label: "প্রোডাকশন স্ট্যাটাস (Stats)" }
           ].map(tab => (
@@ -317,9 +285,12 @@ const CuttingPanel = ({
           ))}
         </div>
 
-        <div className="flex items-center gap-3 w-full lg:w-auto">
+        <div className="flex items-center gap-3 w-full lg:w-auto px-4">
+          <button onClick={() => setShowQR(true)} className="w-11 h-11 bg-blue-600 text-white rounded-xl shadow-lg flex items-center justify-center hover:bg-black transition-all">
+            <Camera size={18} />
+          </button>
           <div className="relative group flex-1 lg:flex-none">
-            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-black dark:text-white dark:text-white" />
+            <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-black dark:text-white" />
             <input
               placeholder="ডিজাইন বা লট..."
               className="premium-input !pl-11 !h-11 !text-[10px] !bg-slate-50 dark:!bg-slate-800/50"
@@ -339,59 +310,6 @@ const CuttingPanel = ({
 
       {/* Main Tab Content */}
       <div className="animate-fade-up">
-        {activeTab === "Incoming Orders" && (
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(masterData.productionRequests || [])
-                .filter(r => r.status !== 'In Cutting' && r.status !== 'Approved')
-                .map((req, i) => (
-                  <div key={i} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-sm hover:border-blue-500 transition-all flex flex-col group p-6 space-y-6">
-                      <div className="flex justify-between items-start">
-                          <div>
-                              <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-1 italic">B2B INCOMING</p>
-                              <h4 className="text-xl font-black uppercase italic leading-none">{req.design}</h4>
-                          </div>
-                          <div className="text-right">
-                              <p className="text-xs font-black text-slate-400 uppercase">{req.client}</p>
-                              <p className="text-[9px] font-bold text-slate-300 font-mono mt-1">{req.date}</p>
-                          </div>
-                      </div>
-                      
-                      <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl space-y-4">
-                          <div className="flex justify-between items-end">
-                              <div>
-                                  <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Total Pieces</p>
-                                  <p className="text-2xl font-black italic">{Number(req.totalBorka || 0) + Number(req.totalHijab || 0)} <span className="text-xs">PCS</span></p>
-                              </div>
-                              <div className="text-right">
-                                  <p className="text-[8px] font-black uppercase text-slate-400 mb-1">Fabric Consumed</p>
-                                  <p className="text-lg font-black italic text-rose-500">{req.fabricGoj} <span className="text-xs">YDS</span></p>
-                              </div>
-                          </div>
-                      </div>
-
-                      <div className="space-y-4 border-t border-slate-100 dark:border-slate-800 pt-6">
-                          <p className="text-[10px] font-bold text-slate-500 line-clamp-2 italic uppercase">Note: {req.note || 'No special requirements listed.'}</p>
-                          <button 
-                            onClick={() => {
-                                setEntryData({
-                                    ...entryData,
-                                    design: req.design,
-                                    client: req.client,
-                                    totalYards: req.fabricGoj,
-                                    sizes: req.sizes || [{ size: "", borka: "", hijab: "" }],
-                                    requestRef: req.id
-                                });
-                                setShowModal(true);
-                            }}
-                            className="w-full py-4 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:bg-blue-700 active:scale-95 transition-all"
-                          >
-                             অর্ডার গ্রহণ ও প্রসেসিং শুরু (START PROCESSING)
-                          </button>
-                      </div>
-                  </div>
-                ))}
-           </div>
-        )}
 
         {activeTab === "Cutting Queue" && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -475,27 +393,6 @@ const CuttingPanel = ({
                   ))
               )}
           </div>
-
-        )}
-
-        {activeTab === "Design Registration" && (
-           <div className="bg-slate-50 dark:bg-slate-800/30 flex flex-col items-center justify-center py-32 space-y-8 rounded-xl border-2 border-dashed border-slate-100 dark:border-slate-800">
-              <div className="w-20 h-20 bg-white dark:bg-slate-900 shadow-2xl rounded-2xl flex items-center justify-center animate-bounce text-slate-200">
-                <Box size={40} strokeWidth={1} />
-              </div>
-              <div className="text-center space-y-3">
-                <h2 className="text-3xl font-bold uppercase tracking-tight text-black dark:text-white dark:text-white">নতুন কাটিং <span className="text-blue-600">আইডি যুক্ত করুন</span></h2>
-                <p className="text-[10px] font-bold tracking-[0.4em] text-black dark:text-white dark:text-white max-w-sm mx-auto uppercase italic">
-                  Launch the registration protocol to initialize a new cutting lot. 
-                </p>
-              </div>
-              <button 
-                onClick={() => setShowModal(true)}
-                className="px-12 py-5 bg-slate-950 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all"
-              >
-                প্রোটোকল চালু করুন (Launch)
-              </button>
-           </div>
 
         )}
 
@@ -777,9 +674,20 @@ const CuttingPanel = ({
           </div>
         )}
       </AnimatePresence>
+      {showQR && (
+         <div className="fixed inset-0 z-[2000] bg-slate-950/80 backdrop-blur-xl flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl relative border-4 border-white/10 italic">
+               <button onClick={() => setShowQR(false)} className="absolute top-8 right-8 text-slate-400 z-50"><X size={32} /></button>
+               <div className="p-10 text-center">
+                  <h2 className="text-3xl font-black uppercase italic mb-2">SCAN <span className="text-blue-600">PRODUCTION</span></h2>
+                  <p className="text-[10px] font-black uppercase opacity-40 tracking-widest mb-10">Identify Lot Passport Instantly</p>
+                  <QRScanner onScan={(data) => { setSearchTerm(data); setShowQR(false); showNotify("Lot Found!"); }} />
+               </div>
+            </div>
+         </div>
+      )}
     </div>
   );
 };
 
 export default CuttingPanel;
-

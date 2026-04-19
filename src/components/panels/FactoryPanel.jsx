@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   AlertCircle,
   User,
+  UserCheck,
   Layers,
   Search,
   Camera,
@@ -29,6 +30,7 @@ import QRScanner from "../QRScanner";
 import UniversalSlip from "../UniversalSlip";
 import { syncToSheet } from "../../utils/syncUtils";
 import { getPataStockItem } from "../../utils/calculations";
+import { getWorkerBalance } from "../../utils/productionUtils";
 import NRZLogo from "../NRZLogo";
 
 const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setActivePanel, t, logAction, SafeText }) => {
@@ -37,8 +39,11 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
   const [showIssueModal, setShowIssueModal] = useState(false);
   const [receiveModal, setReceiveModal] = useState(null);
   const [payModal, setPayModal] = useState(null);
-  const [ledgerModal, setLedgerModal] = useState(null);
+  const [ledgerModal, setLedgerModal] = useState(false);
+  const [selectedWorkerLedger, setSelectedWorkerLedger] = useState(null);
+  const [reportRange, setReportRange] = useState({ start: "", end: "" });
   const [printSlip, setPrintSlip] = useState(null);
+  const [printReport, setPrintReport] = useState(null);
   const [showQR, setShowQR] = useState(false);
   const [receiveState, setReceiveState] = useState({ rBorka: 0, rHijab: 0, penalty: 0, date: new Date().toISOString().split("T")[0] });
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -48,7 +53,36 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
   const isManager = role === "manager";
   const isWorker = role !== "admin" && role !== "manager";
 
-  const workers = (masterData.workerCategories || {})[type] || [];
+  // 🚀 Performance Optimization: Memoized Filtering
+  const activeEntries = useMemo(() => {
+    return (masterData.productions || []).filter(p => 
+      p.status === "Pending" && p.type === type &&
+      (!isWorker || p.worker?.toLowerCase() === user?.name?.toLowerCase()) &&
+      (p.lotNo?.toLowerCase().includes(lotSearch.toLowerCase()) || 
+       p.design?.toLowerCase().includes(lotSearch.toLowerCase()) ||
+       p.worker?.toLowerCase().includes(lotSearch.toLowerCase()))
+    );
+  }, [masterData.productions, type, isWorker, user, lotSearch]);
+
+  const historyEntries = useMemo(() => {
+    return (masterData.productions || []).filter(p => 
+      p.status === "Received" && p.type === type &&
+      (!isWorker || p.worker?.toLowerCase() === user?.name?.toLowerCase()) &&
+      (p.lotNo?.toLowerCase().includes(lotSearch.toLowerCase()) || 
+       p.design?.toLowerCase().includes(lotSearch.toLowerCase()) ||
+       p.worker?.toLowerCase().includes(lotSearch.toLowerCase()))
+    );
+  }, [masterData.productions, type, isWorker, user, lotSearch]);
+
+  const workersList = useMemo(() => {
+    return Array.from(new Set((masterData.workerDocs || [])
+      .filter(d => d.dept === type)
+      .map(d => d.name)));
+  }, [masterData.workerDocs, type]);
+
+  const totalDue = useMemo(() => {
+    return workersList.reduce((sum, name) => sum + getWorkerBalance(masterData, name, type).balance, 0);
+  }, [masterData, workersList, type]);
 
   const [selection, setSelection] = useState({
     worker: "",
@@ -60,22 +94,87 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
     pataType: "Single"
   });
 
+  const nextStoneLotNo = useMemo(() => {
+    const numbers = (masterData.productions || [])
+        .filter(p => p.type === 'stone')
+        .map(e => {
+            const match = String(e.lotNo).match(/ST-(\d+)/);
+            return match ? parseInt(match[1]) : null;
+        })
+        .filter(n => n !== null);
+    const max = numbers.length > 0 ? Math.max(...numbers) : 5000;
+    return `ST-${max + 1}`;
+  }, [masterData.productions]);
+
   const [issueSizes, setIssueSizes] = useState([{ size: "", borka: "", hijab: "", pataQty: "" }]);
 
-  const filteredProductions = (masterData.productions || []).filter(p => {
-    if (p.type !== type) return false;
-    if (isWorker && p.worker?.toLowerCase() !== user?.name?.toLowerCase()) return false;
-    return (p.worker?.toLowerCase() || '').includes(lotSearch.toLowerCase()) ||
-           (p.design?.toLowerCase() || '').includes(lotSearch.toLowerCase()) ||
-           (p.lotNo?.toLowerCase() || '').includes(lotSearch.toLowerCase());
-  });
+  // 🚀 Logic for Advanced Routing & Stock Management
+  const availableLots = useMemo(() => {
+    const lotsMap = {};
 
-  const activeEntries = filteredProductions.filter(p => p.status === "Pending");
-  const historyEntries = filteredProductions.filter(p => p.status === "Received");
+    if (type === 'sewing') {
+      (masterData.cuttingStock || []).forEach(l => {
+        const dObj = (masterData.designs || []).find(d => d.name === l.design);
+        if (!dObj || Number(dObj.sewingRate || 0) <= 0) return;
+        
+        const key = `${l.design}|${l.color}|${l.lotNo}`;
+        if (!lotsMap[key]) {
+          lotsMap[key] = { ...l, source: 'Cutting', sizes: {} };
+        }
+        lotsMap[key].sizes[l.size] = { borka: (lotsMap[key].sizes[l.size]?.borka || 0) + Number(l.borka), hijab: (lotsMap[key].sizes[l.size]?.hijab || 0) + Number(l.hijab) };
+      });
+    }
+    
+    if (type === 'stone') {
+      (masterData.cuttingStock || []).forEach(l => {
+        const dObj = (masterData.designs || []).find(d => d.name === l.design);
+        if (!dObj || Number(dObj.sewingRate || 0) > 0 || Number(dObj.stoneRate || 0) <= 0) return;
+        
+        const key = `${l.design}|${l.color}|${l.lotNo}`;
+        if (!lotsMap[key]) {
+          lotsMap[key] = { ...l, source: 'Cutting', sizes: {} };
+        }
+        lotsMap[key].sizes[l.size] = { borka: (lotsMap[key].sizes[l.size]?.borka || 0) + Number(l.borka), hijab: (lotsMap[key].sizes[l.size]?.hijab || 0) + Number(l.hijab) };
+      });
+
+      (masterData.productions || [])
+        .filter(p => p.type === 'sewing' && p.sentToStone === true)
+        .forEach(p => {
+            const key = `${p.design}|${p.color}|${p.lotNo}`;
+            if (!lotsMap[key]) {
+              lotsMap[key] = { ...p, source: 'Sewing', sizes: {} };
+            }
+            lotsMap[key].sizes[p.size] = { borka: (lotsMap[key].sizes[p.size]?.borka || 0) + Number(p.receivedBorka || 0), hijab: (lotsMap[key].sizes[p.size]?.hijab || 0) + Number(p.receivedHijab || 0) };
+        });
+    }
+
+    Object.keys(lotsMap).forEach(key => {
+        const [design, color, lotNo] = key.split('|');
+        (masterData.productions || [])
+            .filter(p => p.type === type && p.lotNo === lotNo && p.design === design)
+            .forEach(p => {
+                if (lotsMap[key].sizes[p.size]) {
+                    lotsMap[key].sizes[p.size].borka -= Number(p.issueBorka || 0);
+                    lotsMap[key].sizes[p.size].hijab -= Number(p.issueHijab || 0);
+                }
+            });
+    });
+    
+    return Object.values(lotsMap).filter(l => {
+        const total = Object.values(l.sizes).reduce((acc, s) => acc + s.borka + s.hijab, 0);
+        return total > 0;
+    });
+  }, [masterData, type]);
 
   const handleLotSelect = (lotKey) => {
-    if (!lotKey) return;
+    if (!lotKey) {
+        setSelection(prev => ({ ...prev, design: "", color: "", lotNo: type === 'stone' ? nextStoneLotNo : "" }));
+        setIssueSizes([{ size: "", borka: "", hijab: "", pataQty: "" }]);
+        return;
+    }
+    
     const [design, color, lotNo] = lotKey.split("|");
+    const lotData = availableLots.find(l => l.design === design && l.color === color && l.lotNo === lotNo);
     const dObj = (masterData.designs || []).find(d => d.name === design);
     const defaultRate = type === "sewing" ? dObj?.sewingRate || 0 : dObj?.stoneRate || 0;
     
@@ -84,8 +183,20 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
       design,
       color,
       lotNo,
-      rate: defaultRate
+      rate: defaultRate,
+      pataWorker: lotData?.prevWorker || ""
     }));
+
+    const newSizes = Object.entries(lotData?.sizes || {})
+        .filter(([_, qty]) => qty.borka > 0 || qty.hijab > 0)
+        .map(([size, qty]) => ({
+            size,
+            borka: qty.borka,
+            hijab: qty.hijab,
+            pataQty: qty.borka
+        }));
+
+    setIssueSizes(newSizes.length > 0 ? newSizes : [{ size: "", borka: "", hijab: "", pataQty: "" }]);
   };
 
   const handleIssue = () => {
@@ -95,28 +206,40 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
     const validSizes = issueSizes.filter(s => Number(s.borka || 0) > 0 || Number(s.hijab || 0) > 0);
     if (validSizes.length === 0) return showNotify("অন্তত একটি পরিমাণ দিন!", "error");
 
+    // 🚀 Strict Stock Validation
+    const lotData = availableLots.find(l => l.design === design && l.color === color && l.lotNo === lotNo);
+    if (!lotData) return showNotify("নির্বাচিত লট স্টকে নেই!", "error");
+
+    for (const s of validSizes) {
+        const stock = lotData.sizes[s.size] || { borka: 0, hijab: 0 };
+        if (Number(s.borka || 0) > stock.borka || Number(s.hijab || 0) > stock.hijab) {
+            return showNotify(`স্টক সীমা অতিক্রম করেছে! সাইজ: ${s.size} (উপলব্ধ: ${stock.borka}B, ${stock.hijab}H)`, "error");
+        }
+    }
+
     const newEntries = validSizes.map(s => ({
-      id: `prod_${Date.now()}_${Math.random()}`,
-      date: new Date(date).toLocaleDateString("en-GB"),
-      type,
-      worker,
-      design,
-      color,
-      lotNo,
-      size: s.size,
-      issueBorka: Number(s.borka || 0),
-      issueHijab: Number(s.hijab || 0),
-      pataType: type === "stone" ? selection.pataType : null,
-      pataQty: type === "stone" ? Number(s.pataQty || 0) : 0,
-      status: "Pending",
-      rate: Number(rate),
-      receivedBorka: 0,
-      receivedHijab: 0
+        id: `prod_${Date.now()}_${Math.random()}`,
+        date: new Date(date).toLocaleDateString("en-GB"),
+        type,
+        worker,
+        design,
+        color,
+        lotNo,
+        size: s.size,
+        issueBorka: Number(s.borka || 0),
+        issueHijab: Number(s.hijab || 0),
+        pataType: type === "stone" ? selection.pataType : null,
+        pataQty: type === "stone" ? Number(s.pataQty || 0) : 0,
+        pataWorker: selection.pataWorker || "",
+        status: "Pending",
+        rate: Number(rate),
+        receivedBorka: 0,
+        receivedHijab: 0
     }));
 
     setMasterData(prev => ({
-      ...prev,
-      productions: [...newEntries, ...(prev.productions || [])]
+        ...prev,
+        productions: [...newEntries, ...(prev.productions || [])]
     }));
 
     setShowIssueModal(false);
@@ -129,65 +252,143 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
     const rHijab = Number(receiveState.rHijab);
     const penalty = Number(receiveState.penalty || 0);
 
-    setMasterData(prev => ({
-      ...prev,
-      productions: prev.productions.map(p => p.id === receiveModal.id ? {
+    setMasterData(prev => {
+      if (type === 'sewing' && receiveModal.isSendingToStone) {
+          return {
+              ...prev,
+              productions: prev.productions.map(p => p.id === receiveModal.id ? {
+                  ...p,
+                  sentToStone: true,
+                  receivedBorka: rBorka,
+                  receivedHijab: rHijab,
+                  note: (p.note || '') + ` | Sent to Stone: ${rBorka}B, ${rHijab}H`
+              } : p)
+          };
+      }
+
+      let updatedProductions = prev.productions.map(p => p.id === receiveModal.id ? {
         ...p,
         status: "Received",
         receivedBorka: rBorka,
         receivedHijab: rHijab,
+        nostoBorka: Number(receiveState.nostoBorka || 0),
+        nostoHijab: Number(receiveState.nostoHijab || 0),
+        missingHijab: Number(receiveState.missingHijab || 0),
         penalty,
+        hasShortage: (rBorka + rHijab) < (p.issueBorka + p.issueHijab),
         receiveDate: new Date(receiveState.date).toLocaleDateString("en-GB")
-      } : p)
-    }));
+      } : p);
+
+      if (type === 'stone') {
+          updatedProductions = updatedProductions.map(p => {
+              if (p.lotNo === receiveModal.lotNo && p.type === 'sewing' && p.status === 'Pending') {
+                  return {
+                      ...p,
+                      receivedBorka: rBorka,
+                      receivedHijab: rHijab,
+                      hasShortage: (rBorka + rHijab) < (p.issueBorka + p.issueHijab),
+                      note: (p.note || '') + ` | Stone Done: ${rBorka}B, ${rHijab}H (Ready for Receive)`
+                  };
+              }
+              return p;
+          });
+      }
+
+      return { ...prev, productions: updatedProductions };
+    });
 
     setReceiveModal(null);
     showNotify("কাজ জমা নেওয়া হয়েছে!");
   };
 
+  const getWorkerHistory = (name) => {
+    const prods = (masterData.productions || []).filter(p => p.worker === name && p.type === type);
+    const pays = (masterData.workerPayments || []).filter(p => p.worker === name && p.dept === type);
+    
+    let combined = [
+        ...prods.map(p => ({ ...p, sortDate: p.receiveDate || p.date, entryType: 'PRODUCTION' })),
+        ...pays.map(p => ({ ...p, sortDate: p.date, entryType: 'PAYMENT' }))
+    ];
+
+    if (reportRange.start) combined = combined.filter(i => new Date(i.sortDate.split('/').reverse().join('-')) >= new Date(reportRange.start));
+    if (reportRange.end) combined = combined.filter(i => new Date(i.sortDate.split('/').reverse().join('-')) <= new Date(reportRange.end));
+
+    return combined.sort((a, b) => new Date(b.sortDate.split('/').reverse().join('-')) - new Date(a.sortDate.split('/').reverse().join('-')));
+  };
+
   const handlePayment = () => {
     if (!paymentAmount || Number(paymentAmount) <= 0) return;
     const amount = Number(paymentAmount);
-
     setMasterData(prev => ({
       ...prev,
-      workerPayments: [
-        {
-          id: `pay_${Date.now()}`,
-          date: new Date().toLocaleDateString("en-GB"),
-          worker: payModal,
-          dept: type,
-          amount,
-          note: `Manual Payment (${type})`
-        },
-        ...(prev.workerPayments || [])
-      ],
-      expenses: [
-        {
-          id: `exp_w_${Date.now()}`,
-          date: new Date().toISOString().split("T")[0],
-          category: "salary",
-          description: `PMT: ${payModal} (${type})`,
-          amount
-        },
-        ...(prev.expenses || [])
-      ]
+      workerPayments: [{ id: `pay_${Date.now()}`, date: new Date().toLocaleDateString("en-GB"), worker: payModal, dept: type, amount, note: `Manual Payment (${type})` }, ...(prev.workerPayments || [])],
+      expenses: [{ id: `exp_w_${Date.now()}`, date: new Date().toISOString().split("T")[0], category: "salary", description: `PMT: ${payModal} (${type})`, amount }, ...(prev.expenses || [])]
     }));
-
     setPayModal(null);
     setPaymentAmount('');
     showNotify("পেমেন্ট সফলভাবে ব্যালেন্সে যুক্ত হয়েছে!");
   };
 
-  const getWorkerDue = (name) => {
-    const earned = (masterData.productions || [])
-      .filter(p => p.worker === name && p.status === "Received" && p.type === type)
-      .reduce((s, p) => s + (p.receivedBorka + p.receivedHijab) * (p.rate || 0), 0);
-    const paid = (masterData.workerPayments || [])
-      .filter(p => p.worker === name && p.dept === type)
-      .reduce((s, p) => s + Number(p.amount || 0), 0);
-    return earned - paid;
-  };
+  if (printReport) {
+    const history = getWorkerHistory(printReport);
+    const balance = getWorkerBalance(masterData, printReport, type);
+    return (
+      <div className="min-h-screen bg-white p-10 font-outfit italic animate-fade-up">
+        <style>{`@media print { .no-print { display: none !important; } }`}</style>
+        <div className="no-print flex justify-between items-center mb-10 max-w-5xl mx-auto">
+          <button onClick={() => setPrintReport(null)} className="px-8 py-4 bg-slate-50 rounded-2xl font-black uppercase text-[10px]">Back</button>
+          <button onClick={() => window.print()} className="action-btn-primary !px-12 !py-4 shadow-xl"><Printer size={18} /> Print Statement</button>
+        </div>
+        <div className="max-w-4xl mx-auto border-[10px] border-black p-16 rounded-[4rem] relative overflow-hidden bg-white text-black">
+          <div className="flex justify-between items-start border-b-[6px] border-black pb-10 mb-10">
+             <div>
+                <NRZLogo size="md" />
+                <h1 className="text-4xl font-black mt-4 italic uppercase">{type} Worker Statement</h1>
+                <p className="text-[10px] font-black tracking-[0.4em] opacity-40">LEDGER AUDIT // {printReport}</p>
+             </div>
+             <div className="text-right">
+                <p className="text-3xl font-black italic">{new Date().toLocaleDateString()}</p>
+                <p className="text-[10px] font-black uppercase opacity-40 tracking-widest mt-2">Verified Factory Output</p>
+             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-10 mb-12 bg-slate-50 p-10 rounded-[3rem]">
+             <div>
+                <p className="text-[10px] font-black uppercase opacity-40 mb-2">Total Earnings</p>
+                <p className="text-4xl font-black italic">৳{balance.total.toLocaleString()}</p>
+             </div>
+             <div className="text-right">
+                <p className="text-[10px] font-black uppercase opacity-40 mb-2">Outstanding Balance</p>
+                <p className="text-4xl font-black italic text-blue-600">৳{balance.balance.toLocaleString()}</p>
+             </div>
+          </div>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="text-[10px] font-black uppercase opacity-40 border-b-2 border-black">
+                <th className="py-4 px-2">Date</th>
+                <th className="py-4 px-2">Description</th>
+                <th className="py-4 px-2 text-right">Credit</th>
+                <th className="py-4 px-2 text-right">Debit</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y border-b border-black">
+              {history.map((h, i) => (
+                <tr key={i} className="text-xs font-bold uppercase italic">
+                  <td className="py-4 px-2 tabular-nums">{h.sortDate}</td>
+                  <td className="py-4 px-2">{h.entryType === 'PRODUCTION' ? `${h.design} #${h.lotNo} (${h.issueBorka+h.issueHijab}P)` : 'Cash Payment'}</td>
+                  <td className="py-4 px-2 text-right tabular-nums">{h.entryType === 'PRODUCTION' ? `৳${(h.receivedBorka+h.receivedHijab) * h.rate - (h.penalty||0)}` : '-'}</td>
+                  <td className="py-4 px-2 text-right tabular-nums text-rose-600">{h.entryType === 'PAYMENT' ? `৳${h.amount}` : '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="mt-20 flex justify-between items-center opacity-40 text-[10px] font-black uppercase tracking-widest">
+             <p>Authorized Signature</p>
+             <p>NRZONE INDUSTRIAL HUB</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (printSlip) {
     return (
@@ -210,140 +411,176 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
     <div className="space-y-10 pb-32 animate-fade-up px-1 md:px-2 italic font-outfit text-black dark:text-white">
       {/* SaaS Operational HUD */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-slate-950 p-8 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
-          <div className="absolute right-0 top-0 p-8 opacity-5 group-hover:scale-150 transition-transform"><Layers size={100} /></div>
-          <p className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-4">ইউনিট টাইপ</p>
-          <p className="text-4xl font-black tracking-tighter italic">{type.toUpperCase()} UNIT</p>
+        <div className="bg-slate-950 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden group">
+          <div className="absolute right-0 top-0 p-6 opacity-5 group-hover:scale-150 transition-transform"><Layers size={80} /></div>
+          <p className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-2">Unit Node</p>
+          <p className="text-2xl font-black italic tracking-tighter uppercase">{type} HUB</p>
         </div>
 
-        <button onClick={() => setView('active')} className={`bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-4 flex items-center justify-between group transition-all text-left shadow-2xl ${view === 'active' ? 'border-amber-500' : 'border-slate-50 dark:border-slate-800'}`}>
-          <div>
-            <p className="text-4xl font-black tracking-tighter mb-1">{activeEntries.length}</p>
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">চলমান কাজ</p>
-          </div>
-          <div className="w-16 h-16 bg-amber-500 text-white rounded-[1.5rem] flex items-center justify-center shadow-xl group-hover:rotate-12 transition-transform"><Clock size={32} /></div>
-        </button>
-
-        <button onClick={() => setView('history')} className={`bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-4 flex items-center justify-between group transition-all text-left shadow-2xl ${view === 'history' ? 'border-emerald-500' : 'border-slate-50 dark:border-slate-800'}`}>
-          <div>
-            <p className="text-4xl font-black tracking-tighter mb-1">{historyEntries.length}</p>
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-40">পুরাতন রেকর্ড</p>
-          </div>
-          <div className="w-16 h-16 bg-emerald-500 text-white rounded-[1.5rem] flex items-center justify-center shadow-xl group-hover:rotate-12 transition-transform"><CheckCircle size={32} /></div>
-        </button>
-
-        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border-4 border-slate-50 dark:border-slate-800 shadow-2xl flex items-center justify-between group overflow-hidden relative">
-          <div>
-            <p className="text-3xl font-black tracking-tighter mb-1">৳{(workers.reduce((s,w) => s + getWorkerDue(w), 0)).toLocaleString()}</p>
-            <p className="text-[10px] font-black uppercase tracking-widest opacity-40 whitespace-nowrap">মোট বকেয়া মজুরি</p>
-          </div>
-          <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-[1.5rem] flex items-center justify-center group-hover:bg-slate-950 group-hover:text-white transition-all"><DollarSign size={32} /></div>
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xl flex items-center justify-between group overflow-hidden relative">
+            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-150 transition-transform"><Clock size={80} /></div>
+            <div className="flex items-center gap-6 relative z-10">
+                <div className="w-12 h-12 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform">
+                    <Clock size={24} />
+                </div>
+                <div>
+                    <p className="text-3xl font-black tracking-tighter leading-none mb-1">{activeEntries.length}</p>
+                    <p className="text-[9px] font-black opacity-40 uppercase tracking-widest leading-none">চলমান কাজ</p>
+                </div>
+            </div>
         </div>
+
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-xl flex items-center justify-between group overflow-hidden relative">
+            <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-150 transition-transform"><CheckCircle size={80} /></div>
+            <div className="flex items-center gap-6 relative z-10">
+                <div className="w-12 h-12 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform">
+                    <CheckCircle size={24} />
+                </div>
+                <div>
+                    <p className="text-3xl font-black tracking-tighter leading-none mb-1">{historyEntries.length}</p>
+                    <p className="text-[9px] font-black opacity-40 uppercase tracking-widest leading-none">পুরাতন হিস্ট্রি</p>
+                </div>
+            </div>
+        </div>
+
+        <button onClick={() => setLedgerModal(true)} className="bg-slate-950 p-6 rounded-2xl text-white shadow-xl flex items-center justify-between group overflow-hidden relative border border-white/10 transition-all hover:bg-blue-600">
+            <div className="absolute top-0 right-0 p-6 opacity-5 text-white group-hover:scale-150 transition-transform"><UserCheck size={80} /></div>
+            <div className="flex items-center gap-6 relative z-10">
+                <div className="w-12 h-12 bg-white/10 text-white rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <UserCheck size={24} />
+                </div>
+                <div>
+                    <p className="text-2xl font-black tracking-tighter leading-none mb-1">৳{totalDue.toLocaleString()}</p>
+                    <p className="text-[9px] font-black text-white/40 uppercase tracking-widest leading-none">মোট বকেয়া মজুরি</p>
+                </div>
+            </div>
+        </button>
       </div>
 
-      {/* Control Bar */}
-      <div className="bg-white dark:bg-slate-900 p-2 flex flex-col md:flex-row items-center justify-between gap-6 rounded-[2.5rem] border-4 border-slate-50 dark:border-slate-800 shadow-inner">
-        <div className="flex bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-[1.5rem] w-full md:w-auto">
-          {['active', 'history', 'payments'].map(v => (
-            <button key={v} onClick={() => setView(v)} className={`flex-1 md:flex-none px-10 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === v ? 'bg-slate-950 text-white shadow-xl' : 'text-slate-400'}`}>
-              {v === 'active' ? 'চলমান' : v === 'history' ? 'পুরাতন' : 'পেমেন্ট'}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-4 px-2">
-          <div className="relative group">
-            <Search size={14} className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input placeholder="লট, ডিজাইন বা কারিগর..." className="bg-slate-50 dark:bg-slate-800 h-14 pl-14 pr-6 rounded-2xl text-[11px] font-black uppercase outline-none w-64 border-2 border-transparent focus:border-black transition-all italic" value={lotSearch} onChange={(e) => setLotSearch(e.target.value)} />
+      <div className="bg-white dark:bg-slate-900 p-1.5 flex flex-col md:flex-row items-center justify-between gap-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm mb-6">
+          <div className="flex bg-slate-50 dark:bg-slate-800/50 p-1 rounded-xl w-full md:w-auto overflow-x-auto no-scrollbar gap-1">
+              {['active', 'history', 'workers'].map(v => (
+                  <button key={v} onClick={() => setView(v)} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${view === v ? 'bg-slate-950 text-white shadow-md' : 'text-slate-400 hover:text-black'}`}>
+                      {v === 'active' ? 'চলমান' : v === 'history' ? 'পুরাতন' : 'কারিগর তালিকা'}
+                  </button>
+              ))}
           </div>
-          <button onClick={() => setShowQR(true)} className="w-14 h-14 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-950 hover:text-white transition-all"><Camera size={20} /></button>
-          {!isWorker && (
-            <button onClick={() => setShowIssueModal(true)} className="h-14 bg-slate-950 text-white px-8 rounded-2xl flex items-center gap-3 shadow-2xl font-black uppercase text-[10px] tracking-widest italic animate-pulse">
-              <Plus size={20} /> নতুন কাজ দিন
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-        {view === 'payments' ? (
-          workers.map((w, idx) => {
-            const due = getWorkerDue(w);
-            return (
-              <div key={idx} className="bg-white dark:bg-slate-900 border-4 border-slate-50 dark:border-slate-800 rounded-[3rem] p-10 space-y-8 shadow-xl hover:border-black transition-all group animate-fade-up">
-                <div className="flex justify-between items-start">
-                  <div className="space-y-2">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none italic">{type.toUpperCase()} SPECIALIST</p>
-                    <h4 className="text-3xl font-black tracking-tighter uppercase italic">{w}</h4>
-                  </div>
-                  <div className={`w-14 h-14 ${due > 0 ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-300'} rounded-[1.5rem] flex items-center justify-center group-hover:rotate-12 transition-transform shadow-inner`}><User size={28} /></div>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800/80 p-8 rounded-[2.5rem] border border-white dark:border-slate-700 shadow-inner">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 italic">বকেয়া মজুরি (DUE)</p>
-                   <p className={`text-5xl font-black tracking-tighter italic ${due > 0 ? 'text-black dark:text-white' : 'text-slate-200'}`}>৳{due.toLocaleString()}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => setLedgerModal(w)} className="py-4 bg-slate-50 dark:bg-white rounded-2xl font-black uppercase text-[10px] tracking-widest italic">লেজার</button>
-                  <button onClick={() => setPayModal(w)} className="py-4 bg-slate-950 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest italic shadow-xl">পেমেন্ট দিন</button>
-                </div>
+          <div className="flex items-center gap-3 px-1 w-full md:w-auto">
+              <div className="relative group flex-1 md:flex-none">
+                  <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                    placeholder="খুঁজুন (লট/কারিগর)..." 
+                    className="bg-slate-50 dark:bg-slate-800 h-11 pl-11 pr-4 rounded-xl text-[10px] font-black uppercase outline-none w-full md:w-56 border border-transparent focus:border-blue-600 transition-all italic" 
+                    value={lotSearch} 
+                    onChange={(e) => setLotSearch(e.target.value)} 
+                  />
               </div>
-            );
-          })
-        ) : (view === 'active' ? activeEntries : historyEntries).length === 0 ? (
-          <div className="col-span-full h-80 flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-[3rem] border-4 border-dashed border-slate-50 italic">
-            <Activity size={60} strokeWidth={1} className="text-slate-100 mb-6" />
-            <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">রেকর্ড পাওয়া যায়নি</p>
+              <button onClick={() => setShowQR(true)} className="w-11 h-11 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg hover:bg-black transition-all group flex-shrink-0">
+                  <Camera size={18} className="group-hover:scale-110 transition-transform" />
+              </button>
+              {(isAdmin || isManager) && (
+                  <button onClick={() => setShowIssueModal(true)} className="h-11 bg-slate-950 text-white px-6 rounded-xl flex items-center gap-2 shadow-lg font-black uppercase text-[9px] tracking-widest italic flex-shrink-0">
+                      <Plus size={16} /> নতুন কাজ
+                  </button>
+              )}
+          </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {activeEntries.length === 0 ? (
+          <div className="col-span-full py-24 text-center bg-slate-50 dark:bg-slate-800 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700">
+             <Archive size={48} className="mx-auto text-slate-200 mb-4" />
+             <p className="text-xs font-black uppercase opacity-20 italic">No active production nodes</p>
           </div>
         ) : (
-          (view === 'active' ? activeEntries : historyEntries).map((item, idx) => (
-            <div key={item.id} className="bg-white dark:bg-slate-900 border-4 border-slate-50 dark:border-slate-800 rounded-[3rem] p-10 space-y-8 shadow-xl hover:border-black transition-all group animate-fade-up">
-              <div className="flex justify-between items-start">
-                <div className="space-y-2">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">কারিগর</p>
-                  <h4 className="text-3xl font-black tracking-tighter uppercase italic truncate max-w-[200px]">{item.worker}</h4>
-                </div>
-                <div className={`w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center shadow-inner font-black text-[10px]`}>#{item.lotNo.slice(-3)}</div>
+          activeEntries.map(item => (
+            <div key={item.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm hover:border-blue-600 transition-all group relative overflow-hidden flex flex-col justify-between">
+              <div>
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">LOT PASSPORT</p>
+                      <p className="text-2xl font-black italic tracking-tighter text-blue-600 leading-none">#{item.lotNo}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">OPERATOR</p>
+                      <p className="text-xs font-black uppercase truncate max-w-[100px] leading-none">{item.worker}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 mb-6">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 italic">MODEL & COLOR</p>
+                      <p className="text-[10px] font-black uppercase italic truncate">{item.design} // {item.color}</p>
+                    </div>
+                    <div className="flex justify-between items-center px-2">
+                        <div>
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">SIZE</p>
+                            <p className="text-xs font-black uppercase italic">{item.size}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">RATE</p>
+                            <p className="text-xs font-black italic text-emerald-600">৳{item.rate}</p>
+                        </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center py-6 border-t border-slate-50 dark:border-slate-800 border-dashed mb-6">
+                    <div>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">OUTPUT QTY</p>
+                      <p className="text-2xl font-black italic tracking-tighter leading-none">{item.issueBorka + item.issueHijab} <span className="text-[10px] opacity-40">PCS</span></p>
+                    </div>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => {
+                                const workerPhone = (masterData.workerDocs || []).find(d => d.name === item.worker)?.phone;
+                                if (!workerPhone) return showNotify("কর্মী ফোন নম্বর পাওয়া যায়নি!", "error");
+                                const msg = `NRZONE UPDATE:\nTask: ${type.toUpperCase()}\nLot: #${item.lotNo}\nModel: ${item.design}\nQty: ${item.issueBorka + item.issueHijab} PCS\nStatus: ${item.status}`;
+                                const intl = workerPhone.replace(/\D/g, "").startsWith("880") ? workerPhone.replace(/\D/g, "") : "880" + workerPhone.replace(/\D/g, "").replace(/^0/, "");
+                                window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, "_blank");
+                            }} 
+                            className="w-10 h-10 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-lg flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                        >
+                            <MessageCircle size={16} />
+                        </button>
+                        <button onClick={() => setPrintSlip(item)} className="w-10 h-10 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-lg flex items-center justify-center hover:bg-black hover:text-white transition-all shadow-sm"><Printer size={16} /></button>
+                    </div>
+                  </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-[2rem] border border-white dark:border-slate-700">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 italic">মডেল ও রঙ</p>
-                  <p className="text-sm font-black uppercase italic truncate">{item.design} ({item.color})</p>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-[2rem] border border-white dark:border-slate-700">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 italic">সাইজ</p>
-                  <p className="text-sm font-black uppercase italic truncate">{item.size}</p>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center py-8 border-y-2 border-slate-50 dark:border-slate-800 border-dashed">
-                <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 italic">পরিমাণ (QTY)</p>
-                  <p className="text-4xl font-black italic tracking-tighter">{item.issueBorka + item.issueHijab} <span className="text-xs opacity-40">PCS</span></p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 italic">মজুরি রেট</p>
-                  <p className="text-2xl font-black italic text-emerald-500 tracking-tighter">৳{item.rate}</p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <button onClick={() => setPrintSlip(item)} className="w-16 h-16 bg-white dark:bg-slate-800 border-2 border-transparent hover:border-black rounded-2xl flex items-center justify-center shadow-lg transition-all"><Printer size={24} /></button>
+              <div className="flex gap-2">
                 {item.status === 'Pending' ? (
-                  <button onClick={() => setReceiveModal(item)} className="flex-1 h-16 bg-slate-950 text-white rounded-2xl font-black uppercase tracking-widest italic shadow-xl hover:bg-emerald-500 transition-all">কাজ জমা নিন (REC)</button>
+                  (() => {
+                    const designObj = (masterData.designs || []).find(d => d.name === item.design);
+                    const hasStone = Number(designObj?.stoneRate || 0) > 0;
+                    
+                    if (type === 'sewing' && hasStone) {
+                      const stoneEntry = (masterData.productions || []).find(p => p.lotNo === item.lotNo && p.type === 'stone');
+                      const stoneReceived = stoneEntry?.status === 'Received';
+                      
+                      if (!item.sentToStone) {
+                        return (
+                          <button onClick={() => { setReceiveState({ rBorka: item.issueBorka, rHijab: item.issueHijab, penalty: 0, date: new Date().toISOString().split("T")[0] }); setReceiveModal({ ...item, isSendingToStone: true }); }} className="flex-1 h-12 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest italic shadow-lg hover:bg-blue-700 transition-all">পাথরে পাঠান (SEND)</button>
+                        );
+                      }
+                      if (!stoneReceived) {
+                        return (
+                          <div className="flex-1 flex flex-col gap-1">
+                            <div className="h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center font-black uppercase text-[8px] tracking-widest italic border border-amber-100 animate-pulse">IN STONE...</div>
+                            {isAdmin && <button onClick={() => { setReceiveState({ rBorka: item.receivedBorka || item.issueBorka, rHijab: item.receivedHijab || item.issueHijab, penalty: 0, date: new Date().toISOString().split("T")[0] }); setReceiveModal(item); }} className="h-8 bg-rose-600 text-white rounded-lg text-[7px] font-black uppercase tracking-widest shadow-lg">⚡ BYPASS</button>}
+                          </div>
+                        );
+                      }
+                    }
+                    return (
+                      <button onClick={() => { setReceiveState({ rBorka: item.receivedBorka || item.issueBorka, rHijab: item.receivedHijab || item.issueHijab, penalty: 0, date: new Date().toISOString().split("T")[0] }); setReceiveModal(item); }} className="flex-1 h-12 bg-slate-950 text-white rounded-xl font-black uppercase text-[10px] tracking-widest italic shadow-lg hover:bg-emerald-600 transition-all">জমা নিন (REC)</button>
+                    );
+                  })()
                 ) : (
-                  <div className="flex-1 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-black uppercase text-[10px] tracking-widest italic border border-emerald-100">RECEIVED ON {item.receiveDate}</div>
+                  <div className="flex-1 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center font-black uppercase text-[8px] tracking-widest italic border border-emerald-100">RECEIVED: {item.receiveDate}</div>
                 )}
                 {isAdmin && (
-                  <button 
-                  onClick={() => {
-                    if (window.confirm('মুছে ফেলতে চান?')) {
-                      setMasterData(prev => ({ ...prev, productions: prev.productions.filter(p => p.id !== item.id) }));
-                      showNotify('রেকর্ড মুছে ফেলা হয়েছে!');
-                    }
-                  }}
-                  className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center shadow-xl hover:bg-rose-500 hover:text-white transition-all"><Trash2 size={24} /></button>
+                  <button onClick={() => { if (window.confirm('মুছে ফেলতে চান?')) setMasterData(prev => ({ ...prev, productions: prev.productions.filter(p => p.id !== item.id) })); }} className="w-12 h-12 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center shadow-lg hover:bg-rose-500 hover:text-white transition-all border border-rose-100"><Trash2 size={18} /></button>
                 )}
               </div>
             </div>
@@ -351,61 +588,185 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
         )}
       </div>
 
-      {/* Modals */}
       <AnimatePresence>
         {showIssueModal && (
           <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
-             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3rem] shadow-2xl p-12 relative border-4 border-slate-50">
-                <button onClick={() => setShowIssueModal(false)} className="absolute top-10 right-10 text-slate-400 hover:text-black"><X size={32} /></button>
-                <h2 className="text-3xl font-black uppercase italic mb-10 text-center">নতুন {type === 'sewing' ? 'সেলাই' : 'স্টোন'} কাজ <span className="text-blue-600">ইস্যু করুন</span></h2>
-                
-                <div className="grid grid-cols-2 gap-8 mb-8">
-                  <div className="space-y-6">
-                    <div>
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-4">লট সিলেক্ট (Master Lot)</label>
-                      <select className="premium-input !h-14 font-black uppercase italic" value={`${selection.design}|${selection.color}|${selection.lotNo}`} onChange={(e) => handleLotSelect(e.target.value)}>
-                        <option value="">-- SELECT LOT --</option>
-                        {(masterData.cuttingStock || []).map(l => (
-                          <option key={`${l.design}|${l.color}|${l.lotNo}`} value={`${l.design}|${l.color}|${l.lotNo}`}>{l.design} | {l.color} | #{l.lotNo}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-4">কারিগর</label>
-                      <select className="premium-input !h-14 font-black uppercase italic" value={selection.worker} onChange={(e) => setSelection(p => ({ ...p, worker: e.target.value, rate: (masterData.workerWages || {})[type]?.[e.target.value] || p.rate }))}>
-                        <option value="">-- SELECT WORKER --</option>
-                        {workers.map(w => <option key={w} value={w}>{w}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                  <div className="space-y-6">
-                    <div>
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-4">মজুরি রেট</label>
-                      <input type="number" className="premium-input !h-14 font-black text-emerald-600 italic" value={selection.rate} onChange={(e) => setSelection(p => ({ ...p, rate: e.target.value }))} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-black uppercase text-slate-400 ml-4">তারিখ</label>
-                      <input type="date" className="premium-input !h-14 font-black italic" value={selection.date} onChange={(e) => setSelection(p => ({ ...p, date: e.target.value }))} />
-                    </div>
-                  </div>
+             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-[3rem] shadow-2xl p-10 relative border-4 border-slate-50 overflow-y-auto max-h-[95vh]">
+                <button onClick={() => setShowIssueModal(false)} className="absolute top-10 right-10 text-slate-400 hover:text-black z-10"><X size={32} /></button>
+                <h2 className="text-3xl font-black uppercase italic mb-8 text-center">নতুন {type === 'sewing' ? 'সেলাই' : 'স্টোন'} কাজ <span className="text-blue-600">ইস্যু করুন</span></h2>
+
+                <div className="mb-10">
+                   <p className="text-[10px] font-black uppercase text-slate-400 mb-4 ml-4 tracking-widest">সহজ লট সিলেকশন (Available Stock)</p>
+                   <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide px-2">
+                      {availableLots.map(l => (
+                        <button 
+                          key={l.lotNo}
+                          onClick={() => handleLotSelect(`${l.design}|${l.color}|${l.lotNo}`)}
+                          className={`flex-shrink-0 px-6 py-4 rounded-2xl border-2 transition-all text-left ${selection.lotNo === l.lotNo ? 'border-blue-600 bg-blue-50 shadow-lg' : 'border-slate-100 bg-white hover:border-slate-300'}`}
+                        >
+                          <p className="text-[9px] font-black uppercase opacity-40">#{l.lotNo}</p>
+                          <p className="text-sm font-black uppercase truncate max-w-[120px]">{l.design}</p>
+                          <div className="flex gap-2 mt-1">
+                             <span className="text-[8px] font-black bg-slate-900 text-white px-2 py-0.5 rounded-full">{Object.values(l.sizes).reduce((s,q)=>s+q.borka,0)}B</span>
+                             <span className="text-[8px] font-black bg-blue-600 text-white px-2 py-0.5 rounded-full">{Object.values(l.sizes).reduce((s,q)=>s+q.hijab,0)}H</span>
+                          </div>
+                        </button>
+                      ))}
+                      {availableLots.length === 0 && <p className="text-[10px] font-black uppercase text-rose-500 p-4">স্টকে কোনো লট নেই!</p>}
+                   </div>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-800 p-8 rounded-[2.5rem] border border-white dark:border-slate-700 space-y-4 max-h-60 overflow-y-auto">
-                    {issueSizes.map((row, idx) => (
-                      <div key={idx} className="flex gap-4 items-center animate-fade-up">
-                        <select className="flex-1 premium-input !h-12 text-[11px] font-black" value={row.size} onChange={(e) => { const n = [...issueSizes]; n[idx].size = e.target.value; setIssueSizes(n); }}>
-                          <option value="">SIZE...</option>
-                          {(masterData.sizes || []).map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <input className="w-24 premium-input !h-12 text-center font-black" placeholder="BORKA" type="number" value={row.borka} onChange={(e) => { const n = [...issueSizes]; n[idx].borka = e.target.value; setIssueSizes(n); }} />
-                        <input className="w-24 premium-input !h-12 text-center font-black" placeholder="HIJAB" type="number" value={row.hijab} onChange={(e) => { const n = [...issueSizes]; n[idx].hijab = e.target.value; setIssueSizes(n); }} />
-                        {issueSizes.length > 1 && <button onClick={() => setIssueSizes(issueSizes.filter((_, i) => i !== idx))} className="text-rose-500"><X size={20} /></button>}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
+                  <div className="md:col-span-7 space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-slate-400 ml-4">লট নম্বর (Lot)</label>
+                            <select className="premium-input !h-14 font-black uppercase italic" value={`${selection.design}|${selection.color}|${selection.lotNo}`} onChange={(e) => handleLotSelect(e.target.value)}>
+                              <option value="">-- SELECT LOT --</option>
+                              {availableLots.map(l => (
+                                <option key={l.lotNo} value={`${l.design}|${l.color}|${l.lotNo}`}>{l.design} | #{l.lotNo}</option>
+                              ))}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black uppercase text-slate-400 ml-4">কারিগর</label>
+                            <select className="premium-input !h-14 font-black uppercase italic" value={selection.worker} onChange={(e) => setSelection(p => ({ ...p, worker: e.target.value, rate: (masterData.workerWages || {})[type]?.[e.target.value] || p.rate }))}>
+                              <option value="">-- SELECT WORKER --</option>
+                              {workersList.map(w => <option key={w} value={w}>{w}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    {selection.lotNo && (
+                       <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-slate-950 text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden group">
+                          <div className="absolute right-0 top-0 p-8 opacity-10 group-hover:scale-110 transition-transform rotate-12"><Activity size={120} /></div>
+                          <div className="relative z-10">
+                                <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40 mb-2">লট পাসপোর্ট (Lot Summary)</p>
+                                <div className="grid grid-cols-2 gap-8">
+                                    <div>
+                                       <h3 className="text-4xl font-black uppercase italic tracking-tighter">{selection.design}</h3>
+                                       <p className="text-[10px] font-black uppercase tracking-widest mt-2">{selection.color} // #{selection.lotNo}</p>
+                                    </div>
+                                    {type === 'stone' && (
+                                       <div className="bg-white/10 p-4 rounded-2xl border border-white/10 backdrop-blur-md">
+                                          <p className="text-[8px] font-black uppercase tracking-widest opacity-60 mb-1">Live Pata Stock</p>
+                                          <p className="text-2xl font-black italic">
+                                            {getPataStockItem(masterData, selection.design, selection.color, selection.pataType)} 
+                                            <span className="text-[10px] ml-1 opacity-60">PCS</span>
+                                          </p>
+                                          <p className="text-[8px] font-black uppercase mt-1 text-blue-400">Type: {selection.pataType}</p>
+                                       </div>
+                                    )}
+                                 </div>
+                          </div>
+                       </motion.div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">মজুরি রেট</label><input type="number" className="premium-input !h-14 font-black text-emerald-600 italic" value={selection.rate} onChange={(e) => setSelection(p => ({ ...p, rate: e.target.value }))} /></div>
+                        <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">তারিখ</label><input type="date" className="premium-input !h-14 font-black italic" value={selection.date} onChange={(e) => setSelection(p => ({ ...p, date: e.target.value }))} /></div>
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-5 flex flex-col h-full">
+                    <div className="bg-slate-50 dark:bg-slate-800/50 p-10 rounded-[3rem] border-2 border-slate-100 dark:border-slate-800">
+                         <div className="flex justify-between items-center mb-8 px-4">
+                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">সাইজ ও পরিমাণ (Production Queue)</p>
+                            {type === 'stone' && (
+                               <div className="flex gap-4">
+                                  <label className="text-[9px] font-black uppercase text-slate-400">Parts Type:</label>
+                                  <div className="flex gap-2">
+                                     {['Single', 'Double'].map(t => (
+                                        <button key={t} onClick={() => setSelection(p => ({ ...p, pataType: t }))} className={`px-4 py-1 rounded-full text-[9px] font-black uppercase transition-all ${selection.pataType === t ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'}`}>{t}</button>
+                                     ))}
+                                  </div>
+                               </div>
+                            )}
+                         </div>
+                         <div className="space-y-4 max-h-[350px] overflow-y-auto pr-4 no-scrollbar">
+                           {issueSizes.map((s, idx) => (
+                             <div key={idx} className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-6 group">
+                                <div className="w-16 h-16 bg-slate-950 text-white rounded-2xl flex items-center justify-center font-black text-xl italic shadow-lg group-hover:scale-110 transition-transform">{s.size}</div>
+                                <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-6">
+                                   <div><label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">বোরকা (B)</label><input type="number" className="w-full bg-slate-50 p-3 rounded-xl font-black text-lg text-center" value={s.borka} onChange={(e) => { const n = [...issueSizes]; n[idx].borka = Number(e.target.value); setIssueSizes(n); }} /></div>
+                                   <div><label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">হিজাব (H)</label><input type="number" className="w-full bg-slate-50 p-3 rounded-xl font-black text-lg text-center" value={s.hijab} onChange={(e) => { const n = [...issueSizes]; n[idx].hijab = Number(e.target.value); setIssueSizes(n); }} /></div>
+                                   {type === 'stone' && (
+                                      <div><label className="text-[9px] font-black uppercase text-blue-600 mb-1 block">Pata Qty</label><input type="number" className="w-full bg-blue-50 p-3 rounded-xl font-black text-lg text-center text-blue-600" value={s.pataQty} onChange={(e) => { const n = [...issueSizes]; n[idx].pataQty = Number(e.target.value); setIssueSizes(n); }} /></div>
+                                   )}
+                                </div>
+                             </div>
+                           ))}
+                         </div>
                       </div>
-                    ))}
-                    <button onClick={() => setIssueSizes([...issueSizes, { size: "", borka: "", hijab: "", pataQty: "" }])} className="w-full py-3 border-2 border-dashed rounded-xl text-[10px] font-black uppercase text-slate-400 hover:text-black transition-all">+ Add Size Row</button>
+                    <button onClick={handleIssue} className="w-full mt-6 py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase italic shadow-2xl hover:bg-black transition-all">কাজ ইস্যু করুন (DEPLOY)</button>
+                  </div>
+                </div>
+             </motion.div>
+          </div>
+        )}
+
+        {ledgerModal && (
+          <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
+             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-[3rem] shadow-2xl p-10 relative border-4 border-slate-50 overflow-y-auto max-h-[90vh]">
+                <button onClick={() => setLedgerModal(false)} className="absolute top-10 right-10 text-slate-400 z-10"><X size={32} /></button>
+                <div className="flex justify-between items-start mb-10">
+                   <div>
+                      <h2 className="text-4xl font-black uppercase italic tracking-tighter leading-none">{type.toUpperCase()} WORKER <span className="text-blue-600">LEDGER</span></h2>
+                      <p className="text-[10px] font-black uppercase text-slate-400 mt-2 tracking-widest italic">Total workforce synchronized balance</p>
+                   </div>
+                   {selectedWorkerLedger && (
+                     <div className="flex gap-4 items-center bg-slate-50 p-4 rounded-2xl">
+                        <input type="date" className="premium-input !h-10 !w-32 text-[10px]" value={reportRange.start} onChange={e => setReportRange(p => ({ ...p, start: e.target.value }))} />
+                        <span className="text-[10px] font-black opacity-20">TO</span>
+                        <input type="date" className="premium-input !h-10 !w-32 text-[10px]" value={reportRange.end} onChange={e => setReportRange(p => ({ ...p, end: e.target.value }))} />
+                        <button onClick={() => setPrintReport(selectedWorkerLedger)} className="px-6 py-2 bg-slate-950 text-white rounded-xl text-[10px] font-black uppercase flex items-center gap-2"><Printer size={14} /> Download PDF</button>
+                     </div>
+                   )}
                 </div>
 
-                <button onClick={handleIssue} className="w-full mt-10 py-6 bg-slate-950 text-white rounded-[2.5rem] font-black uppercase italic shadow-2xl hover:bg-black transition-all">কাজ নিশ্চিত করুন (DEPLOY JOB)</button>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
+                  <div className="md:col-span-4 space-y-3">
+                     {workersList.map(w => {
+                        const bal = getWorkerBalance(masterData, w, type);
+                        return (
+                          <button key={w} onClick={() => setSelectedWorkerLedger(w)} className={`w-full p-6 rounded-3xl border-2 transition-all flex justify-between items-center ${selectedWorkerLedger === w ? 'border-blue-600 bg-blue-50' : 'border-slate-50 bg-white hover:border-slate-200'}`}>
+                             <div className="text-left"><p className="text-xs font-black uppercase italic">{w}</p><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">{type} Unit</p></div>
+                             <p className="text-xl font-black italic tracking-tighter">৳{bal.balance.toLocaleString()}</p>
+                          </button>
+                        );
+                     })}
+                  </div>
+                  <div className="md:col-span-8 bg-slate-50 rounded-[2.5rem] p-10 border border-white relative min-h-[500px]">
+                     {selectedWorkerLedger ? (
+                       <div className="space-y-6">
+                          <div className="flex justify-between items-center border-b-2 border-slate-200 border-dashed pb-6">
+                             <h4 className="text-2xl font-black italic uppercase">{selectedWorkerLedger} <span className="text-blue-600">History</span></h4>
+                             <button onClick={() => setPayModal(selectedWorkerLedger)} className="px-6 py-3 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase shadow-lg">Make Payment</button>
+                          </div>
+                          <div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">
+                             {getWorkerHistory(selectedWorkerLedger).map((h, i) => (
+                               <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+                                  <div>
+                                     <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase italic mb-2 inline-block ${h.entryType === 'PRODUCTION' ? 'bg-blue-600 text-white' : 'bg-emerald-600 text-white'}`}>{h.entryType}</span>
+                                     <p className="text-xs font-black uppercase italic">{h.entryType === 'PRODUCTION' ? `${h.design} #${h.lotNo} (${h.issueBorka+h.issueHijab}P)` : 'Manual Cash Payment'}</p>
+                                     <p className="text-[9px] font-bold text-slate-400 italic mt-1">{h.sortDate}</p>
+                                  </div>
+                                  <div className="text-right">
+                                     <p className={`text-xl font-black italic ${h.entryType === 'PRODUCTION' ? 'text-black' : 'text-emerald-500'}`}>{h.entryType === 'PRODUCTION' ? `৳${((h.receivedBorka||0)+(h.receivedHijab||0)) * (h.rate||0) - (h.penalty||0)}` : `- ৳${h.amount}`}</p>
+                                  </div>
+                               </div>
+                             ))}
+                             {getWorkerHistory(selectedWorkerLedger).length === 0 && <p className="text-center py-20 opacity-20 font-black uppercase text-[10px] tracking-[0.5em]">No records found for this period</p>}
+                          </div>
+                       </div>
+                     ) : (
+                       <div className="h-full flex flex-col items-center justify-center opacity-20 italic">
+                          <UserCheck size={64} className="mb-6" />
+                          <p className="text-[10px] font-black uppercase tracking-[0.5em]">Select a worker to audit</p>
+                       </div>
+                     )}
+                  </div>
+                </div>
              </motion.div>
           </div>
         )}
@@ -414,23 +775,37 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
           <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3.5rem] shadow-2xl p-12 relative border-4 border-slate-50">
                  <button onClick={() => setReceiveModal(null)} className="absolute top-10 right-10 text-slate-400"><X size={32} /></button>
-                 <h2 className="text-2xl font-black uppercase italic mb-8 text-center">{receiveModal.worker} <span className="text-emerald-500">জমা দিন</span></h2>
-                 <form onSubmit={handleConfirmReceive} className="space-y-8">
+                 <h2 className="text-2xl font-black uppercase italic mb-8 text-center">{receiveModal.worker} <span className="text-emerald-500">{receiveModal.isSendingToStone ? 'পাথরে পাঠান' : 'জমা দিন'}</span></h2>
+                 <form onSubmit={handleConfirmReceive} className="space-y-6">
                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-8 bg-slate-50 dark:bg-slate-800 rounded-[2.5rem] text-center shadow-inner border border-white dark:border-slate-700">
-                          <p className="text-[10px] font-black uppercase text-slate-400 mb-4">বোরকা (REC)</p>
-                          <input type="number" className="w-full text-4xl font-black text-center bg-transparent outline-none italic" value={receiveState.rBorka} onChange={(e) => setReceiveState(p => ({ ...p, rBorka: e.target.value }))} autoFocus />
+                        <div className="p-6 bg-emerald-50 dark:bg-slate-800 rounded-3xl border border-white dark:border-slate-700 text-center">
+                          <p className="text-[10px] font-black uppercase text-slate-400 mb-2">বোরকা (Good)</p>
+                          <input type="number" className="w-full text-2xl font-black bg-transparent outline-none italic text-center" value={receiveState.rBorka} onChange={(e) => setReceiveState(p => ({ ...p, rBorka: e.target.value }))} autoFocus />
                         </div>
-                        <div className="p-8 bg-slate-50 dark:bg-slate-800 rounded-[2.5rem] text-center shadow-inner border border-white dark:border-slate-700">
-                          <p className="text-[10px] font-black uppercase text-slate-400 mb-4">হিজাব (REC)</p>
-                          <input type="number" className="w-full text-4xl font-black text-center bg-transparent outline-none italic" value={receiveState.rHijab} onChange={(e) => setReceiveState(p => ({ ...p, rHijab: e.target.value }))} />
+                        <div className="p-6 bg-rose-50 dark:bg-slate-800 rounded-3xl border border-white dark:border-slate-700 text-center">
+                          <p className="text-[10px] font-black uppercase text-rose-400 mb-2">বোরকা (Nosto)</p>
+                          <input type="number" className="w-full text-2xl font-black bg-transparent outline-none italic text-center text-rose-500" value={receiveState.nostoBorka || 0} onChange={(e) => setReceiveState(p => ({ ...p, nostoBorka: e.target.value }))} />
                         </div>
                      </div>
-                     <div className="p-6 bg-rose-50 text-rose-600 rounded-[2rem] text-center border border-rose-100">
-                        <p className="text-[10px] font-black uppercase mb-2">জরিমানা / Fine (৳)</p>
-                        <input type="number" className="w-full text-3xl font-black text-center bg-transparent outline-none italic" placeholder="0" value={receiveState.penalty} onChange={(e) => setReceiveState(p => ({ ...p, penalty: e.target.value }))} />
+                     <div className="grid grid-cols-3 gap-4">
+                        <div className="p-4 bg-emerald-50 dark:bg-slate-800 rounded-2xl border border-white dark:border-slate-700 text-center">
+                          <p className="text-[9px] font-black uppercase text-slate-400 mb-1">হিজাব (Good)</p>
+                          <input type="number" className="w-full text-xl font-black bg-transparent outline-none italic text-center" value={receiveState.rHijab} onChange={(e) => setReceiveState(p => ({ ...p, rHijab: e.target.value }))} />
+                        </div>
+                        <div className="p-4 bg-rose-50 dark:bg-slate-800 rounded-2xl border border-white dark:border-slate-700 text-center">
+                          <p className="text-[9px] font-black uppercase text-rose-400 mb-1">হিজাব (Nosto)</p>
+                          <input type="number" className="w-full text-xl font-black bg-transparent outline-none italic text-center text-rose-500" value={receiveState.nostoHijab || 0} onChange={(e) => setReceiveState(p => ({ ...p, nostoHijab: e.target.value }))} />
+                        </div>
+                        <div className="p-4 bg-amber-50 dark:bg-slate-800 rounded-2xl border border-white dark:border-slate-700 text-center">
+                          <p className="text-[9px] font-black uppercase text-amber-500 mb-1">হিজাব (Missing)</p>
+                          <input type="number" className="w-full text-xl font-black bg-transparent outline-none italic text-center text-amber-600" value={receiveState.missingHijab || 0} onChange={(e) => setReceiveState(p => ({ ...p, missingHijab: e.target.value }))} />
+                        </div>
                      </div>
-                     <button type="submit" className="w-full py-6 bg-slate-950 text-white rounded-[2rem] font-black uppercase italic shadow-xl">জমা নিশ্চিত করুন</button>
+                     <div className="grid grid-cols-2 gap-4">
+                        <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">জরিমানা (Penalty)</label><input type="number" className="premium-input !h-14 font-black text-rose-500 italic" value={receiveState.penalty} onChange={(e) => setReceiveState(p => ({ ...p, penalty: e.target.value }))} /></div>
+                        <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">জমার তারিখ</label><input type="date" className="premium-input !h-14 font-black italic" value={receiveState.date} onChange={(e) => setReceiveState(p => ({ ...p, date: e.target.value }))} /></div>
+                     </div>
+                     <button type="submit" className="w-full py-6 bg-slate-950 text-white rounded-[2.5rem] font-black uppercase italic shadow-2xl hover:bg-emerald-500 transition-all">কনফার্ম করুন (RECEIVE)</button>
                  </form>
              </motion.div>
           </div>
@@ -439,63 +814,20 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
         {payModal && (
           <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3.5rem] shadow-2xl p-12 relative border-4 border-slate-50">
-                 <button onClick={() => setPayModal(null)} className="absolute top-10 right-10 text-slate-400"><X size={32} /></button>
-                 <h2 className="text-2xl font-black uppercase italic mb-8 text-center">{payModal} <span className="text-emerald-500">পেমেন্ট</span></h2>
-                 <div className="p-10 bg-slate-50 dark:bg-slate-800 rounded-[2.5rem] text-center mb-8 shadow-inner border border-white dark:border-slate-700">
-                     <p className="text-[10px] font-black uppercase text-slate-400 mb-4">টাকার পরিমাণ (৳)</p>
-                     <input type="number" className="w-full text-5xl font-black text-center bg-transparent outline-none italic" placeholder="0" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} autoFocus />
-                 </div>
-                 <button onClick={handlePayment} className="w-full py-6 bg-emerald-500 text-white rounded-[2rem] font-black uppercase tracking-widest italic shadow-xl hover:bg-black transition-all">পেমেন্ট নিশ্চিত করুন</button>
-             </motion.div>
-          </div>
-        )}
-
-        {ledgerModal && (
-          <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
-             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[3rem] shadow-2xl p-10 relative border-4 border-slate-50 max-h-[90vh] overflow-y-auto">
-                <button onClick={() => setLedgerModal(null)} className="absolute top-10 right-10 text-slate-400"><X size={32} /></button>
-                <h2 className="text-2xl font-black uppercase italic mb-10 text-center font-outfit">{ledgerModal} <span className="text-blue-600">লেজার</span></h2>
-                <div className="space-y-4">
-                   {(masterData.productions || []).filter(p => p.worker === ledgerModal && p.status === 'Received' && p.type === type).map((p, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-6 bg-slate-50 dark:bg-slate-800 rounded-[2rem] border border-white dark:border-slate-700 italic">
-                         <div>
-                            <p className="text-[10px] font-black text-slate-400 uppercase">{p.receiveDate}</p>
-                            <h4 className="text-sm font-black uppercase">{p.design} | #{p.lotNo.slice(-3)} ({p.receivedBorka + p.receivedHijab} PCS)</h4>
-                         </div>
-                         <p className="text-lg font-black text-emerald-600">৳{((p.receivedBorka + p.receivedHijab) * p.rate).toLocaleString()}</p>
-                      </div>
-                   ))}
-                   {(masterData.workerPayments || []).filter(pay => pay.worker === ledgerModal && pay.dept === type).map((pay, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-6 bg-rose-50 dark:bg-rose-900/10 rounded-[2rem] border border-rose-100 italic">
-                         <div>
-                            <p className="text-[10px] font-black text-rose-400 uppercase">{pay.date}</p>
-                            <h4 className="text-sm font-black uppercase">মজুরি পরিশোধ (DISBURSEMENT)</h4>
-                         </div>
-                         <p className="text-lg font-black text-rose-600">- ৳{pay.amount.toLocaleString()}</p>
-                      </div>
-                   ))}
+                <button onClick={() => setPayModal(null)} className="absolute top-10 right-10 text-slate-400"><X size={32} /></button>
+                <h2 className="text-2xl font-black uppercase italic mb-8 text-center">{payModal} <span className="text-blue-600">পেমেন্ট</span></h2>
+                <div className="mb-10 text-center p-8 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-white dark:border-slate-700">
+                   <p className="text-[10px] font-black uppercase text-slate-400 mb-2">মোট বকেয়া ব্যালেন্স</p>
+                   <p className="text-5xl font-black tracking-tighter italic">৳{getWorkerBalance(masterData, payModal, type).balance.toLocaleString()}</p>
                 </div>
-                <div className="mt-10 p-10 bg-slate-950 text-white rounded-[2.5rem] flex justify-between items-center">
-                   <p className="text-xs font-black uppercase tracking-widest opacity-40">LEDGER BALANCE</p>
-                   <p className="text-4xl font-black italic tracking-tighter">৳{getWorkerDue(ledgerModal).toLocaleString()}</p>
+                <div className="space-y-6">
+                   <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">টাকার পরিমাণ (Amount)</label><input type="number" className="premium-input !h-20 text-4xl font-black text-blue-600 italic text-center" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="0.00" autoFocus /></div>
+                   <button onClick={handlePayment} className="w-full py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase italic shadow-2xl hover:bg-black transition-all">পেমেন্ট কনফার্ম (PAY NOW)</button>
                 </div>
              </motion.div>
           </div>
         )}
       </AnimatePresence>
-
-      {/* Return Button */}
-      <div className="pt-24 pb-12 flex justify-center">
-        <button
-          onClick={() => setActivePanel("Overview")}
-          className="group flex items-center gap-8 bg-white dark:bg-slate-900 px-16 py-8 rounded-[2.5rem] border-4 border-slate-50 dark:border-slate-800 shadow-2xl hover:border-black transition-all duration-500"
-        >
-          <div className="p-4 bg-slate-950 text-white rounded-2xl transition-transform shadow-2xl group-hover:-translate-x-4">
-            <ArrowLeft size={24} strokeWidth={3} />
-          </div>
-          <span className="text-2xl font-black tracking-tighter text-black dark:text-white uppercase leading-none italic">RETURN TO HUB</span>
-        </button>
-      </div>
     </div>
   );
 };

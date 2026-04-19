@@ -20,7 +20,7 @@ export const DashboardCard = ({ title, pending, finished, bill, color, label2 = 
                     <p className="text-3xl md:text-5xl font-black tracking-tighter leading-none italic text-[var(--text-primary)]"><SafeText data={pending} /></p>
                 </div>
                 <div className="bg-[var(--bg-primary)] p-6 md:p-8 rounded-3xl shadow-[var(--neu-concave)]">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-black dark:text-white dark:text-white mb-2"><SafeText data={label2.toUpperCase()} /></p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-black dark:text-white dark:text-white mb-2"><SafeText data={label2?.toUpperCase()} /></p>
                     <p className="text-3xl md:text-5xl font-black tracking-tighter leading-none italic text-[var(--text-primary)]"><SafeText data={finished} /></p>
                 </div>
             </div>
