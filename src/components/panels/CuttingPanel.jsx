@@ -381,7 +381,7 @@ const CuttingPanel = ({
                             >
                                 সুইং এ পাঠান (Swing)
                             </button>
-                            {user?.role === 'admin' && (
+                            {user?.role?.toLowerCase() === 'admin' && (
                                 <button 
                                     onClick={() => handleDelete(item.id)} 
                                     className="w-11 h-11 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-sm border border-slate-200 dark:border-slate-700" title="ডিলিট">

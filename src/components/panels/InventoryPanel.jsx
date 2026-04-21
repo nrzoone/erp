@@ -444,7 +444,7 @@ const InventoryPanel = ({
                                 <th className="p-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">আইটেম (Item)</th>
                                 <th className="p-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">পরিমাণ (Qty)</th>
                                 <th className="p-6 text-[10px] font-bold uppercase tracking-widest text-slate-400">ধরণ</th>
-                                {user?.role === 'admin' && <th className="p-6 text-right text-[10px] font-bold uppercase tracking-widest text-slate-400">Action</th>}
+                                {user?.role?.toLowerCase() === 'admin' && <th className="p-6 text-right text-[10px] font-bold uppercase tracking-widest text-slate-400">Action</th>}
                              </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
@@ -461,7 +461,7 @@ const InventoryPanel = ({
                                             {log.type === 'in' ? 'IN' : 'OUT'}
                                         </span>
                                     </td>
-                                    {user?.role === 'admin' && (
+                                    {user?.role?.toLowerCase() === 'admin' && (
                                         <td className="p-6 text-right">
                                             <button 
                                                 onClick={() => {

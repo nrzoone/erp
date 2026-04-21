@@ -372,7 +372,7 @@ const Sidebar = ({ activePanel, setActivePanel, panelTab, setPanelTab, user, set
                     const role = user?.role?.toLowerCase();
                     if (role === 'admin') return true;
                     if (role === 'manager') return !['Security', 'History'].includes(item.id);
-                    if (role === 'worker') return (item.id === 'Accounts' && item.tab === 'workforce');
+                    if (role === 'worker') return ['Overview', 'Attendance'].includes(item.id);
                     return false;
                 }).map(item => {
                     const Icon = item.icon;

@@ -32,7 +32,7 @@ const StatCard = ({ label, value, icon: Icon, color, sub }) => (
     </div>
 );
 
-const Overview = ({ masterData, setActivePanel, setPanelTab, SafeText }) => {
+const Overview = ({ masterData, setActivePanel, setPanelTab, SafeText, user }) => {
     const menuItems = [
         { label: "কাটিং ও লট", icon: Scissors, id: "Cutting", sub: "Master Production", color: "bg-blue-600" },
         { label: "সেলাই ইউনিট", icon: Layers, id: "Swing", sub: "Garment Sewing", color: "bg-indigo-600" },
@@ -44,6 +44,14 @@ const Overview = ({ masterData, setActivePanel, setPanelTab, SafeText }) => {
         { label: "হাজিরা প্যানেল", icon: Users, id: "Attendance", sub: "Staff Attendance", color: "bg-orange-600" },
         { label: "সিস্টেম সেটিংস", icon: Settings, id: "Settings", sub: "Config Control", color: "bg-slate-700" },
     ];
+
+    const visibleMenuItems = menuItems.filter(item => {
+        const role = user?.role?.toLowerCase();
+        if (role === 'admin') return true;
+        if (role === 'manager') return !['Security', 'History'].includes(item.id);
+        if (role === 'worker') return ['Overview', 'Attendance'].includes(item.id);
+        return false;
+    });
 
     const todayStr = new Date().toLocaleDateString('en-GB');
     const todayExp = (masterData.expenses || []).filter(e => e.date === todayStr).reduce((a,b)=>a+b.amount, 0);
@@ -91,7 +99,7 @@ const Overview = ({ masterData, setActivePanel, setPanelTab, SafeText }) => {
                 </div>
                 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                    {menuItems.map((item, idx) => (
+                    {visibleMenuItems.map((item, idx) => (
                         <button 
                             key={idx}
                             onClick={() => {
