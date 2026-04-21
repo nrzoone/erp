@@ -23,7 +23,8 @@ import {
   Settings,
   ChevronRight,
   ShieldCheck,
-  Activity
+  Activity,
+  MessageCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import QRScanner from "../QRScanner";
@@ -199,7 +200,7 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
     setIssueSizes(newSizes.length > 0 ? newSizes : [{ size: "", borka: "", hijab: "", pataQty: "" }]);
   };
 
-  const handleIssue = () => {
+  const handleIssue = (shouldPrint = false) => {
     const { worker, design, color, lotNo, rate, date } = selection;
     if (!worker || !lotNo) return showNotify("কারিগর ও লট নির্বাচন করুন!", "error");
     
@@ -208,12 +209,13 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
 
     // 🚀 Strict Stock Validation
     const lotData = availableLots.find(l => l.design === design && l.color === color && l.lotNo === lotNo);
-    if (!lotData) return showNotify("নির্বাচিত লট স্টকে নেই!", "error");
-
+    
     for (const s of validSizes) {
-        const stock = lotData.sizes[s.size] || { borka: 0, hijab: 0 };
-        if (Number(s.borka || 0) > stock.borka || Number(s.hijab || 0) > stock.hijab) {
-            return showNotify(`স্টক সীমা অতিক্রম করেছে! সাইজ: ${s.size} (উপলব্ধ: ${stock.borka}B, ${stock.hijab}H)`, "error");
+        if (lotData) {
+            const stock = lotData.sizes[s.size] || { borka: 0, hijab: 0 };
+            if (Number(s.borka || 0) > stock.borka || Number(s.hijab || 0) > stock.hijab) {
+                return showNotify(`স্টক সীমা অতিক্রম করেছে! সাইজ: ${s.size} (উপলব্ধ: ${stock.borka}B, ${stock.hijab}H)`, "error");
+            }
         }
     }
 
@@ -244,6 +246,7 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
 
     setShowIssueModal(false);
     showNotify("কাজ সফলভাবে ইস্যু হয়েছে!");
+    if (shouldPrint) setPrintSlip(newEntries[0]);
   };
 
   const handleConfirmReceive = (e) => {
@@ -513,22 +516,28 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
                       <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1.5 italic">MODEL & COLOR</p>
                       <p className="text-[10px] font-black uppercase italic truncate">{item.design} // {item.color}</p>
                     </div>
-                    <div className="flex justify-between items-center px-2">
+                    <div className="flex justify-between items-center px-2 py-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 shadow-inner">
                         <div>
-                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">SIZE</p>
-                            <p className="text-xs font-black uppercase italic">{item.size}</p>
+                            <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1 italic">SIZE</p>
+                            <p className="text-2xl font-black uppercase italic text-black dark:text-white">{item.size}</p>
                         </div>
-                        <div className="text-right">
-                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">RATE</p>
-                            <p className="text-xs font-black italic text-emerald-600">৳{item.rate}</p>
+                        <div className="flex gap-4">
+                            <div className="text-center">
+                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">BORKA (B)</p>
+                                <p className="text-xl font-black italic">{item.issueBorka}</p>
+                            </div>
+                            <div className="text-center border-l border-slate-100 dark:border-slate-800 pl-4">
+                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">HIJAB (H)</p>
+                                <p className="text-xl font-black italic">{item.issueHijab}</p>
+                            </div>
                         </div>
                     </div>
                   </div>
 
                   <div className="flex justify-between items-center py-6 border-t border-slate-50 dark:border-slate-800 border-dashed mb-6">
                     <div>
-                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">OUTPUT QTY</p>
-                      <p className="text-2xl font-black italic tracking-tighter leading-none">{item.issueBorka + item.issueHijab} <span className="text-[10px] opacity-40">PCS</span></p>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">TOTAL OUTPUT</p>
+                      <p className="text-4xl font-black italic tracking-tighter leading-none text-black dark:text-white">{item.issueBorka + item.issueHijab} <span className="text-xs opacity-40">PCS</span></p>
                     </div>
                     <div className="flex gap-2">
                         <button 
@@ -593,7 +602,7 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
           <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-[3rem] shadow-2xl p-10 relative border-4 border-slate-50 overflow-y-auto max-h-[95vh]">
                 <button onClick={() => setShowIssueModal(false)} className="absolute top-10 right-10 text-slate-400 hover:text-black z-10"><X size={32} /></button>
-                <h2 className="text-3xl font-black uppercase italic mb-8 text-center">নতুন {type === 'sewing' ? 'সেলাই' : 'স্টোন'} কাজ <span className="text-blue-600">ইস্যু করুন</span></h2>
+                <h2 className="text-3xl font-black uppercase italic mb-8 text-center text-black dark:text-white">নতুন {type === 'sewing' ? 'সেলাই' : 'স্টোন'} কাজ <span className="text-blue-600">ইস্যু করুন</span></h2>
 
                 <div className="mb-10">
                    <p className="text-[10px] font-black uppercase text-slate-400 mb-4 ml-4 tracking-widest">সহজ লট সিলেকশন (Available Stock)</p>
@@ -619,18 +628,26 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
                   <div className="md:col-span-7 space-y-6">
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
+                        <div className="flex flex-col gap-2">
                             <label className="text-[10px] font-black uppercase text-slate-400 ml-4">লট নম্বর (Lot)</label>
-                            <select className="premium-input !h-14 font-black uppercase italic" value={`${selection.design}|${selection.color}|${selection.lotNo}`} onChange={(e) => handleLotSelect(e.target.value)}>
-                              <option value="">-- SELECT LOT --</option>
-                              {availableLots.map(l => (
-                                <option key={l.lotNo} value={`${l.design}|${l.color}|${l.lotNo}`}>{l.design} | #{l.lotNo}</option>
-                              ))}
-                            </select>
+                            <div className="flex gap-2">
+                                <select className="premium-input !h-14 font-black uppercase italic flex-1 dark:bg-slate-800 dark:text-white" value={`${selection.design}|${selection.color}|${selection.lotNo}`} onChange={(e) => handleLotSelect(e.target.value)}>
+                                  <option value="">-- SELECT LOT --</option>
+                                  {availableLots.map(l => (
+                                    <option key={l.lotNo} value={`${l.design}|${l.color}|${l.lotNo}`}>{l.design} | #{l.lotNo}</option>
+                                  ))}
+                                </select>
+                                <button 
+                                    onClick={() => setSelection(p => ({ ...p, lotNo: nextFactoryLotNo, design: '', color: '', note: 'AUTO LOT' }))}
+                                    className="px-4 bg-blue-600 text-white rounded-xl text-[8px] font-black uppercase italic shadow-lg hover:bg-black transition-all"
+                                >
+                                    AUTO
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label className="text-[10px] font-black uppercase text-slate-400 ml-4">কারিগর</label>
-                            <select className="premium-input !h-14 font-black uppercase italic" value={selection.worker} onChange={(e) => setSelection(p => ({ ...p, worker: e.target.value, rate: (masterData.workerWages || {})[type]?.[e.target.value] || p.rate }))}>
+                            <select className="premium-input !h-14 font-black uppercase italic dark:bg-slate-800 dark:text-white" value={selection.worker} onChange={(e) => setSelection(p => ({ ...p, worker: e.target.value, rate: (masterData.workerWages || {})[type]?.[e.target.value] || p.rate }))}>
                               <option value="">-- SELECT WORKER --</option>
                               {workersList.map(w => <option key={w} value={w}>{w}</option>)}
                             </select>
@@ -663,8 +680,8 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
                     )}
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">মজুরি রেট</label><input type="number" className="premium-input !h-14 font-black text-emerald-600 italic" value={selection.rate} onChange={(e) => setSelection(p => ({ ...p, rate: e.target.value }))} /></div>
-                        <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">তারিখ</label><input type="date" className="premium-input !h-14 font-black italic" value={selection.date} onChange={(e) => setSelection(p => ({ ...p, date: e.target.value }))} /></div>
+                        <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">মজুরি রেট</label><input type="number" className="premium-input !h-14 font-black text-emerald-600 italic dark:bg-slate-800 dark:text-emerald-400" value={selection.rate} onChange={(e) => setSelection(p => ({ ...p, rate: e.target.value }))} /></div>
+                        <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">তারিখ</label><input type="date" className="premium-input !h-14 font-black italic dark:bg-slate-800 dark:text-white" value={selection.date} onChange={(e) => setSelection(p => ({ ...p, date: e.target.value }))} /></div>
                     </div>
                   </div>
 
@@ -688,17 +705,22 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
                              <div key={idx} className="bg-white dark:bg-slate-900 p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-6 group">
                                 <div className="w-16 h-16 bg-slate-950 text-white rounded-2xl flex items-center justify-center font-black text-xl italic shadow-lg group-hover:scale-110 transition-transform">{s.size}</div>
                                 <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-6">
-                                   <div><label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">বোরকা (B)</label><input type="number" className="w-full bg-slate-50 p-3 rounded-xl font-black text-lg text-center" value={s.borka} onChange={(e) => { const n = [...issueSizes]; n[idx].borka = Number(e.target.value); setIssueSizes(n); }} /></div>
-                                   <div><label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">হিজাব (H)</label><input type="number" className="w-full bg-slate-50 p-3 rounded-xl font-black text-lg text-center" value={s.hijab} onChange={(e) => { const n = [...issueSizes]; n[idx].hijab = Number(e.target.value); setIssueSizes(n); }} /></div>
+                                   <div><label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">বোরকা (B)</label><input type="number" className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl font-black text-lg text-center dark:text-white" value={s.borka} onChange={(e) => { const n = [...issueSizes]; n[idx].borka = Number(e.target.value); setIssueSizes(n); }} /></div>
+                                   <div><label className="text-[9px] font-black uppercase text-slate-400 mb-1 block">হিজাব (H)</label><input type="number" className="w-full bg-slate-50 dark:bg-slate-800 p-3 rounded-xl font-black text-lg text-center dark:text-white" value={s.hijab} onChange={(e) => { const n = [...issueSizes]; n[idx].hijab = Number(e.target.value); setIssueSizes(n); }} /></div>
                                    {type === 'stone' && (
-                                      <div><label className="text-[9px] font-black uppercase text-blue-600 mb-1 block">Pata Qty</label><input type="number" className="w-full bg-blue-50 p-3 rounded-xl font-black text-lg text-center text-blue-600" value={s.pataQty} onChange={(e) => { const n = [...issueSizes]; n[idx].pataQty = Number(e.target.value); setIssueSizes(n); }} /></div>
+                                      <div><label className="text-[9px] font-black uppercase text-blue-600 mb-1 block">Pata Qty</label><input type="number" className="w-full bg-blue-50 dark:bg-blue-900/30 p-3 rounded-xl font-black text-lg text-center text-blue-600 dark:text-blue-400" value={s.pataQty} onChange={(e) => { const n = [...issueSizes]; n[idx].pataQty = Number(e.target.value); setIssueSizes(n); }} /></div>
                                    )}
                                 </div>
                              </div>
                            ))}
                          </div>
                       </div>
-                    <button onClick={handleIssue} className="w-full mt-6 py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase italic shadow-2xl hover:bg-black transition-all">কাজ ইস্যু করুন (DEPLOY)</button>
+                    <div className="flex gap-4 mt-6">
+                        <button onClick={() => handleIssue(false)} className="flex-1 py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase italic shadow-2xl hover:bg-blue-700 transition-all">সংরক্ষণ করুন (SAVE)</button>
+                        <button onClick={() => handleIssue(true)} className="flex-[2] py-6 bg-slate-950 text-white rounded-[2.5rem] font-black uppercase italic shadow-2xl hover:bg-black transition-all flex items-center justify-center gap-3">
+                            <Printer size={24} /> সংরক্ষণ ও প্রিন্ট (PRINT)
+                        </button>
+                    </div>
                   </div>
                 </div>
              </motion.div>
@@ -711,7 +733,7 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
                 <button onClick={() => setLedgerModal(false)} className="absolute top-10 right-10 text-slate-400 z-10"><X size={32} /></button>
                 <div className="flex justify-between items-start mb-10">
                    <div>
-                      <h2 className="text-4xl font-black uppercase italic tracking-tighter leading-none">{type.toUpperCase()} WORKER <span className="text-blue-600">LEDGER</span></h2>
+                      <h2 className="text-4xl font-black uppercase italic tracking-tighter leading-none text-black dark:text-white">{type.toUpperCase()} WORKER <span className="text-blue-600">LEDGER</span></h2>
                       <p className="text-[10px] font-black uppercase text-slate-400 mt-2 tracking-widest italic">Total workforce synchronized balance</p>
                    </div>
                    {selectedWorkerLedger && (
@@ -775,7 +797,7 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
           <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3.5rem] shadow-2xl p-12 relative border-4 border-slate-50">
                  <button onClick={() => setReceiveModal(null)} className="absolute top-10 right-10 text-slate-400"><X size={32} /></button>
-                 <h2 className="text-2xl font-black uppercase italic mb-8 text-center">{receiveModal.worker} <span className="text-emerald-500">{receiveModal.isSendingToStone ? 'পাথরে পাঠান' : 'জমা দিন'}</span></h2>
+                 <h2 className="text-2xl font-black uppercase italic mb-8 text-center text-black dark:text-white">{receiveModal.worker} <span className="text-emerald-500">{receiveModal.isSendingToStone ? 'পাথরে পাঠান' : 'জমা দিন'}</span></h2>
                  <form onSubmit={handleConfirmReceive} className="space-y-6">
                      <div className="grid grid-cols-2 gap-4">
                         <div className="p-6 bg-emerald-50 dark:bg-slate-800 rounded-3xl border border-white dark:border-slate-700 text-center">
@@ -815,7 +837,7 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
           <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3.5rem] shadow-2xl p-12 relative border-4 border-slate-50">
                 <button onClick={() => setPayModal(null)} className="absolute top-10 right-10 text-slate-400"><X size={32} /></button>
-                <h2 className="text-2xl font-black uppercase italic mb-8 text-center">{payModal} <span className="text-blue-600">পেমেন্ট</span></h2>
+                <h2 className="text-2xl font-black uppercase italic mb-8 text-center text-black dark:text-white">{payModal} <span className="text-blue-600">পেমেন্ট</span></h2>
                 <div className="mb-10 text-center p-8 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-white dark:border-slate-700">
                    <p className="text-[10px] font-black uppercase text-slate-400 mb-2">মোট বকেয়া ব্যালেন্স</p>
                    <p className="text-5xl font-black tracking-tighter italic">৳{getWorkerBalance(masterData, payModal, type).balance.toLocaleString()}</p>

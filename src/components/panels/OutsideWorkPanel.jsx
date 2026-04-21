@@ -62,6 +62,14 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
     });
 
     // 🚀 Advanced Lot Synchronization Logic
+    const nextOutsideLotNo = useMemo(() => {
+        const numbers = (masterData.outsideWork || [])
+            .map(e => parseInt(e.lotNo))
+            .filter(n => !isNaN(n));
+        const max = numbers.length > 0 ? Math.max(...numbers) : 5000;
+        return (max + 1).toString();
+    }, [masterData.outsideWork]);
+
     const availableLots = useMemo(() => {
         const lotsMap = {};
         
@@ -398,7 +406,7 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
           <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-5xl rounded-[3rem] shadow-2xl p-10 relative border-4 border-slate-50 overflow-y-auto max-h-[95vh] italic">
                 <button onClick={() => setShowModal(false)} className="absolute top-10 right-10 text-slate-400 z-10"><X size={32} /></button>
-                <h2 className="text-3xl font-black uppercase italic mb-8 text-center text-slate-950 dark:text-white">বাইরের কাজ <span className="text-blue-600">ইস্যু করুন</span></h2>
+                <h2 className="text-3xl font-black uppercase italic mb-8 text-center text-black dark:text-white">বাইরের কাজ <span className="text-blue-600">ইস্যু করুন</span></h2>
 
                 {/* 🚀 Stock Suggester Bar */}
                 <div className="mb-10">
@@ -430,12 +438,30 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
                             <span>লট নম্বর (Lot)</span>
                             <button onClick={() => { const l = prompt('Enter Lot Number:'); if (l) handleLotSearch(l); }} className="text-blue-600 hover:underline">খুঁজুন</button>
                         </label>
-                        <input className="premium-input !h-14 font-black uppercase italic" value={entryData.lotNo} onChange={e => setEntryData({ ...entryData, lotNo: e.target.value })} placeholder="LOT NO..." />
+                        <div className="relative flex gap-2">
+                           <input className="premium-input !h-14 font-black uppercase italic dark:bg-slate-800 dark:text-white" value={entryData.lotNo} onChange={e => setEntryData({ ...entryData, lotNo: e.target.value })} placeholder="LOT NO..." />
+                           <button 
+                            onClick={() => setEntryData(p => ({ ...p, lotNo: nextOutsideLotNo, design: '', note: 'AUTO GENERATED' }))}
+                            className="px-4 bg-blue-600 text-white rounded-xl text-[8px] font-black uppercase italic shadow-lg hover:bg-black transition-all"
+                           >
+                             AUTO
+                           </button>
+                        </div>
                       </div>
                       <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">কারিগর (Contractor)</label><input className="premium-input !h-14 font-black uppercase italic" value={entryData.worker} onChange={e => setEntryData({ ...entryData, worker: e.target.value })} placeholder="CONTRACTOR NAME..." /></div>
                     </div>
                     
-                    <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">ডিজাইন / মডেল</label><input className="premium-input !h-14 font-black uppercase italic" value={entryData.design} onChange={e => setEntryData({ ...entryData, design: e.target.value })} placeholder="DESIGN NAME..." /></div>
+                    <div>
+                      <label className="text-[10px] font-black uppercase text-slate-400 ml-4">ডিজাইন / মডেল</label>
+                      <select 
+                        className="premium-input !h-14 font-black uppercase italic" 
+                        value={entryData.design} 
+                        onChange={e => setEntryData({ ...entryData, design: e.target.value })}
+                      >
+                        <option value="">ডিজাইন নির্বাচন করুন...</option>
+                        {(masterData.designs || []).map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
+                      </select>
+                    </div>
                     
                     <div className="grid grid-cols-2 gap-4">
                        <div><label className="text-[10px] font-black uppercase text-slate-400 ml-4">কাজের ধরন (Task)</label><input className="premium-input !h-14 font-black uppercase italic text-blue-600" value={entryData.task} onChange={e => setEntryData({ ...entryData, task: e.target.value })} placeholder="E.G. EMBROIDERY / STONE..." /></div>
@@ -465,7 +491,12 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
                       <textarea className="premium-input !h-20 py-4 font-bold uppercase italic" value={entryData.note} onChange={e => setEntryData({ ...entryData, note: e.target.value })} placeholder="ADDITIONAL NOTES..."></textarea>
                     </div>
 
-                    <button onClick={() => handleSaveIssue(false)} className="w-full py-6 bg-slate-950 text-white rounded-[2.5rem] font-black uppercase italic shadow-2xl hover:bg-blue-600 transition-all">কাজ ইস্যু করুন (DEPLOY JOB)</button>
+                    <div className="flex gap-4">
+                        <button onClick={() => handleSaveIssue(false)} className="flex-1 py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase italic shadow-2xl hover:bg-blue-700 transition-all">সংরক্ষণ করুন (SAVE)</button>
+                        <button onClick={() => handleSaveIssue(true)} className="flex-[2] py-6 bg-slate-950 text-white rounded-[2.5rem] font-black uppercase italic shadow-2xl hover:bg-black transition-all flex items-center justify-center gap-3">
+                            <Printer size={24} /> সংরক্ষণ ও প্রিন্ট (PRINT)
+                        </button>
+                    </div>
                   </div>
                 </div>
              </motion.div>
@@ -507,9 +538,21 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
                                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 italic">কাজের ধরন</p>
                                 <p className="text-sm font-black text-black dark:text-white truncate uppercase italic">{item.task}</p>
                             </div>
-                            <div className="bg-slate-50 dark:bg-slate-800/80 p-6 rounded-[2rem] border border-white dark:border-slate-700">
-                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 italic">পরিমাণ</p>
-                                <p className="text-sm font-black text-black dark:text-white truncate uppercase italic">{item.borkaQty + item.hijabQty} PCS</p>
+                            <div className="bg-slate-50 dark:bg-slate-800/80 p-6 rounded-[2rem] border border-white dark:border-slate-700 flex justify-between items-center">
+                                <div>
+                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">SIZE</p>
+                                    <p className="text-2xl font-black text-black dark:text-white uppercase italic">{item.size}</p>
+                                </div>
+                                <div className="flex gap-4">
+                                    <div className="text-center">
+                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">B</p>
+                                        <p className="text-lg font-black text-black dark:text-white italic">{item.borkaQty}</p>
+                                    </div>
+                                    <div className="text-center border-l border-slate-200 dark:border-slate-700 pl-4">
+                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">H</p>
+                                        <p className="text-lg font-black text-black dark:text-white italic">{item.hijabQty}</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -557,54 +600,11 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
 
             {/* Modals */}
             <AnimatePresence>
-                {showModal && (
-                    <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
-                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3rem] shadow-2xl p-12 relative border-4 border-slate-50">
-                            <button onClick={() => setShowModal(false)} className="absolute top-10 right-10 text-slate-400 hover:text-black"><X size={32} /></button>
-                            <h2 className="text-3xl font-black uppercase italic mb-10 text-center">নতুন কাজ <span className="text-blue-600">ইস্যু করুন</span></h2>
-                            <div className="grid grid-cols-2 gap-8">
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">কারিগর</label>
-                                        <input className="premium-input !h-14 font-black uppercase" placeholder="NAME..." value={entryData.worker} onChange={(e) => setEntryData(p => ({ ...p, worker: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">কাজ</label>
-                                        <input className="premium-input !h-14 font-black uppercase" placeholder="TASK..." value={entryData.task} onChange={(e) => setEntryData(p => ({ ...p, task: e.target.value }))} />
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">বোরকা</label>
-                                            <input type="number" className="premium-input !h-14 font-black text-center" placeholder="0" value={entryData.borkaQty} onChange={(e) => setEntryData(p => ({ ...p, borkaQty: e.target.value }))} />
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">হিজাব</label>
-                                            <input type="number" className="premium-input !h-14 font-black text-center" placeholder="0" value={entryData.hijabQty} onChange={(e) => setEntryData(p => ({ ...p, hijabQty: e.target.value }))} />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="space-y-6">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">রেট (প্রতি পিস)</label>
-                                        <input type="number" className="premium-input !h-14 font-black text-emerald-600" placeholder="0.00" value={entryData.rate} onChange={(e) => setEntryData(p => ({ ...p, rate: e.target.value }))} />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-2">তারিখ</label>
-                                        <input type="date" className="premium-input !h-14 font-black" value={entryData.date} onChange={(e) => setEntryData(p => ({ ...p, date: e.target.value }))} />
-                                    </div>
-                                    <textarea className="premium-input !h-32 pt-4 font-black uppercase" placeholder="NOTE..." value={entryData.note} onChange={(e) => setEntryData(p => ({ ...p, note: e.target.value }))} />
-                                </div>
-                            </div>
-                            <button onClick={() => handleSaveIssue(false)} className="w-full mt-10 py-6 bg-slate-950 text-white rounded-[2.5rem] font-black uppercase tracking-widest italic shadow-2xl hover:bg-black transition-all">নিশ্চিত করুন (DEPLOY)</button>
-                        </motion.div>
-                    </div>
-                )}
-
                 {receiveModal && (
                     <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] shadow-2xl p-12 relative border-4 border-slate-50">
                             <button onClick={() => setReceiveModal(null)} className="absolute top-10 right-10 text-slate-400"><X size={32} /></button>
-                            <h2 className="text-2xl font-black uppercase italic mb-8 text-center">{receiveModal.worker} <span className="text-emerald-500">জমা দিন</span></h2>
+                            <h2 className="text-2xl font-black uppercase italic mb-8 text-center text-black dark:text-white">{receiveModal.worker} <span className="text-emerald-500">জমা দিন</span></h2>
                             <div className="grid grid-cols-2 gap-4 mb-8 text-center bg-slate-50 p-6 rounded-[2rem]">
                                 <div><p className="text-[10px] font-black uppercase text-slate-400">বোরকা</p><input type="number" className="w-full text-center text-4xl font-black bg-transparent" value={receiveModal.rBorkaQty} onChange={(e) => setReceiveModal(p => ({ ...p, rBorkaQty: e.target.value }))} /></div>
                                 <div><p className="text-[10px] font-black uppercase text-slate-400">হিজাব</p><input type="number" className="w-full text-center text-4xl font-black bg-transparent" value={receiveModal.rHijabQty} onChange={(e) => setReceiveModal(p => ({ ...p, rHijabQty: e.target.value }))} /></div>
@@ -618,7 +618,7 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
                     <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] shadow-2xl p-12 relative border-4 border-slate-50">
                             <button onClick={() => setPayModal(null)} className="absolute top-10 right-10 text-slate-400"><X size={32} /></button>
-                            <h2 className="text-2xl font-black uppercase italic mb-8 text-center">{payModal.worker} <span className="text-emerald-500">পেমেন্ট</span></h2>
+                            <h2 className="text-2xl font-black uppercase italic mb-8 text-center text-black dark:text-white">{payModal.worker} <span className="text-emerald-500">পেমেন্ট</span></h2>
                             <div className="p-10 bg-slate-50 rounded-[2rem] text-center mb-8">
                                 <p className="text-[10px] font-black uppercase text-slate-400 mb-4">টাকার পরিমাণ (৳)</p>
                                 <input type="number" className="w-full text-5xl font-black text-center bg-transparent outline-none" placeholder="0" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} />
@@ -646,7 +646,7 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
                         <button onClick={() => setLedgerModal(false)} className="absolute top-10 right-10 text-slate-400 z-10"><X size={32} /></button>
                         <div className="flex justify-between items-start mb-10">
                            <div>
-                              <h2 className="text-4xl font-black uppercase italic tracking-tighter leading-none">OUTSIDE WORK <span className="text-blue-600">LEDGER</span></h2>
+                              <h2 className="text-4xl font-black uppercase italic tracking-tighter leading-none text-black dark:text-white">OUTSIDE WORK <span className="text-blue-600">LEDGER</span></h2>
                               <p className="text-[10px] font-black uppercase text-slate-400 mt-2 tracking-widest italic">External contractors synchronized balance</p>
                            </div>
                            {selectedWorkerLedger && (

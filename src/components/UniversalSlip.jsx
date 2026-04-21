@@ -21,6 +21,7 @@ const UniversalSlip = ({ data, type, copyTitle, logoUrl = null, SafeText: PropSa
     // Status in Bengali
     const getStatusBN = () => {
         if (type === 'PAYMENT') return 'পেমেন্ট ভাউচার (PAYMENT)';
+        if (type === 'EXPENSE') return 'খরচ ভাউচার (EXPENSE)';
         if (type === 'ISSUE') return 'কাজের স্লিপ (WORK ISSUE)';
         if (type === 'RECEIVE') return 'জমা স্লিপ (RECEIVE)';
         if (type === 'CUTTING') return 'কাটিং স্লিপ (CUTTING NODE)';
@@ -71,23 +72,35 @@ const UniversalSlip = ({ data, type, copyTitle, logoUrl = null, SafeText: PropSa
                 <div className="flex-1 border-r-[8px] border-black p-6 space-y-6">
                     <div className="flex justify-between items-start">
                         <div className="space-y-1">
-                            <p className="text-[11px] font-black text-black dark:text-white">কারিগর</p>
-                            <p className="text-5xl font-black leading-none tracking-tighter"><SafeText data={worker} /></p>
+                            <p className="text-[11px] font-black text-black dark:text-white">
+                                {type === 'EXPENSE' || type === 'PAYMENT' ? 'বিবরণ / খাত' : 'কারিগর'}
+                            </p>
+                            <p className={`${(data.description || data.client || worker).length > 20 ? 'text-3xl' : 'text-5xl'} font-black leading-none tracking-tighter`}>
+                                <SafeText data={data.description || data.client || worker} />
+                            </p>
                         </div>
                         <div className="text-right space-y-1">
-                            <p className="text-[11px] font-black text-black dark:text-white">লট নম্বর</p>
-                            <p className="text-4xl font-black tracking-tighter text-black dark:text-white underline decoration-4 underline-offset-8 decoration-black"><SafeText data={data.lotNo} fallback="N/A" /></p>
+                            <p className="text-[11px] font-black text-black dark:text-white">
+                                {type === 'EXPENSE' || type === 'PAYMENT' ? 'রেফারেন্স / নোট' : 'লট নম্বর'}
+                            </p>
+                            <p className="text-4xl font-black tracking-tighter text-black dark:text-white underline decoration-4 underline-offset-8 decoration-black">
+                                <SafeText data={data.category || data.note || data.lotNo} fallback="N/A" />
+                            </p>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-6 pt-4 border-t-4 border-black">
                         <div className="bg-slate-100 p-4 rounded-xl">
-                            <p className="text-[10px] font-black text-black dark:text-white">ডিজাইন</p>
-                            <p className="text-3xl font-black tracking-tighter"><SafeText data={data.design} fallback="GENERAL" /></p>
+                            <p className="text-[10px] font-black text-black dark:text-white">
+                                {type === 'EXPENSE' || type === 'PAYMENT' ? 'পেমেন্ট মেথড' : 'ডিজাইন'}
+                            </p>
+                            <p className="text-3xl font-black tracking-tighter"><SafeText data={data.method || data.design} fallback="GENERAL" /></p>
                         </div>
                         <div className="bg-slate-100 p-4 rounded-xl text-right">
-                            <p className="text-[10px] font-black text-black dark:text-white">রঙ</p>
-                            <p className="text-3xl font-black tracking-tighter"><SafeText data={data.color} fallback="N/A" /></p>
+                            <p className="text-[10px] font-black text-black dark:text-white">
+                                {type === 'EXPENSE' || type === 'PAYMENT' ? 'তারিখ' : 'রঙ'}
+                            </p>
+                            <p className="text-3xl font-black tracking-tighter"><SafeText data={date} fallback="N/A" /></p>
                         </div>
                     </div>
 

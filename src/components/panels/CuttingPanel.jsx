@@ -334,8 +334,8 @@ const CuttingPanel = ({
                         <div className="p-6 space-y-6 flex-1">
                             <div className="flex justify-between items-start">
                                 <div className="space-y-1">
-                                    <p className="text-[9px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest leading-none">ডিজাইন আইডি (Design)</p>
-                                    <h4 className="text-2xl font-bold tracking-tight text-black dark:text-white dark:text-white uppercase leading-none">{item.design}</h4>
+                                    <p className="text-[9px] font-bold text-black dark:text-white uppercase tracking-widest leading-none">ডিজাইন আইডি (Design)</p>
+                                    <h2 className="text-2xl font-bold tracking-tight text-black dark:text-white uppercase leading-none">{item.design}</h2>
                                 </div>
                                 <div className="w-12 h-12 bg-slate-950 text-white rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform font-bold text-xs flex-col leading-none text-center">
                                     <span className="text-[10px]">#{item.lotNo}</span>
@@ -344,35 +344,35 @@ const CuttingPanel = ({
 
                             <div className="grid grid-cols-3 gap-4">
                                 <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                                    <p className="text-[8px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 italic">রঙ</p>
-                                    <p className="text-sm font-bold text-black dark:text-white dark:text-white truncate uppercase">{item.color}</p>
+                                    <p className="text-[8px] font-bold text-black dark:text-white uppercase tracking-widest mb-1 italic">রঙ</p>
+                                    <p className="text-sm font-bold text-black dark:text-white truncate uppercase">{item.color}</p>
                                 </div>
                                 <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                                    <p className="text-[8px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 italic">তারিখ</p>
-                                    <p className="text-sm font-bold text-black dark:text-white dark:text-white truncate italic">{item.date}</p>
+                                    <p className="text-[8px] font-bold text-black dark:text-white uppercase tracking-widest mb-1 italic">তারিখ</p>
+                                    <p className="text-sm font-bold text-black dark:text-white truncate italic">{item.date}</p>
                                 </div>
                                 <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                                    <p className="text-[8px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 italic">ক্লায়েন্ট</p>
-                                    <p className="text-sm font-bold text-black dark:text-white dark:text-white truncate uppercase">{item.client || '-'}</p>
+                                    <p className="text-[8px] font-bold text-black dark:text-white uppercase tracking-widest mb-1 italic">ক্লায়েন্ট</p>
+                                    <p className="text-sm font-bold text-black dark:text-white truncate uppercase">{item.client || '-'}</p>
                                 </div>
                             </div>
                             
                             <div className="flex justify-between items-center py-5 border-y border-slate-100 dark:border-slate-800 border-dashed">
                                 <div className="flex flex-col">
-                                     <span className="text-[9px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 leading-none">বোরকা (Borka)</span>
-                                     <span className="text-3xl font-bold text-black dark:text-white dark:text-white leading-none">{item.borka}</span>
+                                     <span className="text-[9px] font-bold text-black dark:text-white uppercase tracking-widest mb-1 leading-none">বোরকা (Borka)</span>
+                                     <span className="text-3xl font-bold text-black dark:text-white leading-none">{item.borka}</span>
                                 </div>
                                 <div className="w-px h-10 bg-slate-100 dark:bg-slate-800"></div>
                                 <div className="text-right">
-                                     <span className="text-[9px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 leading-none">হিজাব (Hijab)</span>
-                                     <span className="text-3xl font-bold text-black dark:text-white dark:text-white leading-none">{item.hijab}</span>
+                                     <span className="text-[9px] font-bold text-black dark:text-white uppercase tracking-widest mb-1 leading-none">হিজাব (Hijab)</span>
+                                     <span className="text-3xl font-bold text-black dark:text-white leading-none">{item.hijab}</span>
                                 </div>
                             </div>
                         </div>
 
                         {/* Action Footer */}
                         <div className="flex gap-3 p-6 bg-slate-50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800">
-                            <button onClick={() => setPrintSlip(item)} className="w-11 h-11 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-black dark:text-white dark:text-white hover:bg-slate-950 hover:text-white transition-all shadow-sm border border-slate-200 dark:border-slate-700" title="স্লিপ প্রিন্ট">
+                            <button onClick={() => setPrintSlip(item)} className="w-11 h-11 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-black dark:text-white hover:bg-slate-950 hover:text-white transition-all shadow-sm border border-slate-200 dark:border-slate-700" title="স্লিপ প্রিন্ট">
                                 <Printer size={16} />
                             </button>
                             <button 
@@ -401,8 +401,8 @@ const CuttingPanel = ({
               <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-8 md:p-12 space-y-12">
                 <div className="flex justify-between items-end">
                    <div>
-                      <h3 className="text-3xl font-bold tracking-tight text-black dark:text-white dark:text-white uppercase mb-2">Yield <span className="text-blue-600">Optimizer</span></h3>
-                      <p className="text-[10px] font-bold tracking-widest text-black dark:text-white dark:text-white uppercase italic">Advanced Pattern Utilization Analytics</p>
+                      <h3 className="text-3xl font-bold tracking-tight text-black dark:text-white uppercase mb-2">Yield <span className="text-blue-600">Optimizer</span></h3>
+                      <p className="text-[10px] font-bold tracking-widest text-black dark:text-white uppercase italic">Advanced Pattern Utilization Analytics</p>
                    </div>
                    <Activity className="text-blue-500 opacity-20" size={56} />
                 </div>
@@ -410,18 +410,18 @@ const CuttingPanel = ({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    {[
                      { label: "Fabric Usage", value: "96.4%", icon: Layers, color: "text-emerald-500" },
-                     { label: "Waste Factor", value: "3.6%", icon: Scissors, color: "text-black dark:text-white dark:text-white" },
+                     { label: "Waste Factor", value: "3.6%", icon: Scissors, color: "text-black dark:text-white" },
                      { label: "Velocity", value: "142 U/H", icon: Activity, color: "text-blue-500" },
                      { label: "Queue Sync", value: "0.0s", icon: Clock, color: "text-rose-500" }
                    ].map((a, i) => (
                      <div key={i} className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800">
                         <div className="flex justify-between items-start mb-4">
-                           <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-lg shadow-sm flex items-center justify-center text-black dark:text-white dark:text-white">
+                           <div className="w-10 h-10 bg-white dark:bg-slate-900 rounded-lg shadow-sm flex items-center justify-center text-black dark:text-white">
                               <a.icon size={16} />
                            </div>
                            <span className="text-[8px] font-bold uppercase tracking-widest text-slate-300">NODE 0{i+1}</span>
                         </div>
-                        <p className="text-[10px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 italic leading-none">{a.label}</p>
+                        <p className="text-[10px] font-bold text-black dark:text-white uppercase tracking-widest mb-1 italic leading-none">{a.label}</p>
                         <h4 className={`text-3xl font-bold italic leading-none ${a.color}`}>{a.value}</h4>
                      </div>
                    ))}
@@ -462,7 +462,7 @@ const CuttingPanel = ({
             <div className="p-2.5 bg-slate-950 text-white rounded-xl transition-transform shadow-lg group-hover:scale-110">
                 <ArrowLeft size={18} />
             </div>
-            <span className="text-sm font-bold tracking-tight text-black dark:text-white dark:text-white uppercase">
+            <span className="text-sm font-bold tracking-tight text-black dark:text-white uppercase">
                 ড্যাশবোর্ডে ফিরে যান (Return)
             </span>
         </button>
@@ -475,7 +475,7 @@ const CuttingPanel = ({
             <div className="w-full max-w-4xl my-auto bg-white dark:bg-slate-900 rounded-xl shadow-2xl p-8 md:p-12 relative overflow-hidden border border-slate-100 dark:border-slate-800 animate-fade-up">
               <button 
                 onClick={() => setShowModal(false)} 
-                className="absolute top-6 right-6 p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl hover:bg-slate-950 hover:text-white transition-all text-black dark:text-white dark:text-white"
+                className="absolute top-6 right-6 p-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl hover:bg-slate-950 hover:text-white transition-all text-black dark:text-white"
               >
                 <X size={20} />
               </button>
@@ -484,15 +484,15 @@ const CuttingPanel = ({
                 <div className="text-center space-y-3">
                   <div className="mx-auto w-14 h-14 bg-slate-950 text-white rounded-xl flex items-center justify-center shadow-lg"><Scissors size={24} /></div>
                   <div>
-                    <h2 className="text-2xl font-bold tracking-tight text-black dark:text-white dark:text-white uppercase leading-none">নতুন কাটিং <span className="text-blue-600">এন্ট্রি করুন</span></h2>
-                    <p className="text-[10px] font-bold text-black dark:text-white dark:text-white tracking-widest mt-2 uppercase italic leading-none">Primary Material Injection Protocol</p>
+                    <h2 className="text-2xl font-bold tracking-tight text-black dark:text-white uppercase leading-none">নতুন কাটিং <span className="text-blue-600">এন্ট্রি করুন</span></h2>
+                    <p className="text-[10px] font-bold text-black dark:text-white tracking-widest mt-2 uppercase italic leading-none">Primary Material Injection Protocol</p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <div className="space-y-6">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase text-black dark:text-white dark:text-white tracking-widest ml-1">ডিজাইন (Design)</label>
+                      <label className="text-[10px] font-bold uppercase text-black dark:text-white tracking-widest ml-1">ডিজাইন (Design)</label>
                       <select 
                         className="premium-input !h-12 text-sm font-bold uppercase" 
                         value={entryData.design} 
@@ -504,7 +504,7 @@ const CuttingPanel = ({
                     </div>
                     
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase text-black dark:text-white dark:text-white tracking-widest ml-1">রঙ (Color Mapping)</label>
+                      <label className="text-[10px] font-bold uppercase text-black dark:text-white tracking-widest ml-1">রঙ (Color Mapping)</label>
                       <select 
                         className="premium-input !h-12 text-sm font-bold uppercase" 
                         value={entryData.color} 
@@ -517,7 +517,7 @@ const CuttingPanel = ({
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold uppercase text-black dark:text-white dark:text-white tracking-widest ml-1">লট নম্বর (Lot)</label>
+                            <label className="text-[10px] font-bold uppercase text-black dark:text-white tracking-widest ml-1">লট নম্বর (Lot)</label>
                             <input 
                                 className="premium-input !bg-slate-950 !text-white !h-12 text-lg font-bold text-center border-none" 
                                 value={entryData.lotNo} 
@@ -525,7 +525,7 @@ const CuttingPanel = ({
                             />
                         </div>
                         <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold uppercase text-black dark:text-white dark:text-white tracking-widest ml-1">তারিখ (Date)</label>
+                            <label className="text-[10px] font-bold uppercase text-black dark:text-white tracking-widest ml-1">তারিখ (Date)</label>
                             <input 
                                 type="date" 
                                 className="premium-input !h-12 text-xs font-bold text-center !bg-slate-50 dark:!bg-slate-800/50 border-slate-200 dark:border-slate-700" 
@@ -537,7 +537,7 @@ const CuttingPanel = ({
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold uppercase text-black dark:text-white dark:text-white tracking-widest ml-1">কাটার এর নাম (Cutter)</label>
+                          <label className="text-[10px] font-bold uppercase text-black dark:text-white tracking-widest ml-1">কাটার এর নাম (Cutter)</label>
                           <select 
                             className="premium-input !h-12 text-sm font-bold uppercase" 
                             value={entryData.cutterName} 
@@ -549,7 +549,7 @@ const CuttingPanel = ({
                           </select>
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-bold uppercase text-black dark:text-white dark:text-white tracking-widest ml-1">ক্লায়েন্ট (Client Ownership)</label>
+                          <label className="text-[10px] font-bold uppercase text-black dark:text-white tracking-widest ml-1">ক্লায়েন্ট (Client Ownership)</label>
                           <select 
                             className="premium-input !h-12 text-sm font-bold uppercase" 
                             value={entryData.client} 
@@ -564,7 +564,7 @@ const CuttingPanel = ({
                         <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                            <div className="flex justify-between items-center mb-1">
-                             <label className="text-[10px] font-bold uppercase text-black dark:text-white dark:text-white tracking-widest ml-1">কাপড় / মেটেরিয়াল</label>
+                             <label className="text-[10px] font-bold uppercase text-black dark:text-white tracking-widest ml-1">কাপড় / মেটেরিয়াল</label>
                              {entryData.client && (
                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${clientStock <= 0 ? 'bg-rose-100 text-rose-600' : 'bg-blue-100 text-blue-600'}`}>
                                  স্টক: {clientStock} গজ
@@ -599,7 +599,7 @@ const CuttingPanel = ({
 
                   <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col shadow-inner">
                      <div className="flex justify-between items-center mb-6">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-black dark:text-white dark:text-white">সাইজ লিস্ট (Size Matrix)</label>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-black dark:text-white">সাইজ লিস্ট (Size Matrix)</label>
                         <button 
                             onClick={() => setEntryData(p => ({ ...p, sizes: [...p.sizes, { size: "", borka: "", hijab: "" }] }))} 
                             className="w-10 h-10 bg-slate-950 text-white rounded-xl flex items-center justify-center hover:scale-110 shadow-lg transition-all"
@@ -625,7 +625,7 @@ const CuttingPanel = ({
                                 <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-300 uppercase">B</span>
                                 <input 
                                     placeholder="0" type="number" 
-                                    className="w-full bg-transparent h-10 text-xl font-bold text-center outline-none" 
+                                    className="w-full bg-transparent h-10 text-xl font-bold text-center text-black dark:text-white outline-none" 
                                     value={s.borka} 
                                     onChange={(e) => { const newSizes = [...entryData.sizes]; newSizes[idx].borka = e.target.value; setEntryData(p => ({ ...p, sizes: newSizes })); }} 
                                 />
@@ -634,7 +634,7 @@ const CuttingPanel = ({
                                 <span className="absolute left-1 top-1/2 -translate-y-1/2 text-[8px] font-bold text-slate-300 uppercase">H</span>
                                 <input 
                                     placeholder="0" type="number" 
-                                    className="w-full bg-transparent h-10 text-xl font-bold text-center text-black dark:text-white dark:text-white outline-none" 
+                                    className="w-full bg-transparent h-10 text-xl font-bold text-center text-black dark:text-white outline-none" 
                                     value={s.hijab} 
                                     onChange={(e) => { const newSizes = [...entryData.sizes]; newSizes[idx].hijab = e.target.value; setEntryData(p => ({ ...p, sizes: newSizes })); }} 
                                 />
@@ -658,9 +658,15 @@ const CuttingPanel = ({
                 <div className="flex flex-col md:flex-row gap-4">
                    <button 
                     onClick={() => setShowModal(false)} 
-                    className="flex-1 py-4 rounded-xl bg-white border-2 border-black text-black dark:text-white font-black uppercase text-[10px] tracking-widest hover:bg-black hover:text-white transition-all shadow-lg"
+                    className="flex-1 py-4 rounded-xl bg-white border-2 border-slate-200 text-slate-400 font-black uppercase text-[10px] tracking-widest hover:bg-slate-50 transition-all"
                    >
                     বাতিল (Close)
+                   </button>
+                   <button 
+                    onClick={() => handleAddCutting(false)} 
+                    className="flex-1 py-4 bg-blue-600 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-all"
+                   >
+                     সংরক্ষণ করুন (Save)
                    </button>
                    <button 
                     onClick={() => handleAddCutting(true)} 
@@ -679,7 +685,7 @@ const CuttingPanel = ({
             <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl relative border-4 border-white/10 italic">
                <button onClick={() => setShowQR(false)} className="absolute top-8 right-8 text-slate-400 z-50"><X size={32} /></button>
                <div className="p-10 text-center">
-                  <h2 className="text-3xl font-black uppercase italic mb-2">SCAN <span className="text-blue-600">PRODUCTION</span></h2>
+                  <h2 className="text-3xl font-black uppercase italic mb-2 text-black dark:text-white">SCAN <span className="text-blue-600">INVENTORY</span></h2>
                   <p className="text-[10px] font-black uppercase opacity-40 tracking-widest mb-10">Identify Lot Passport Instantly</p>
                   <QRScanner onScan={(data) => { setSearchTerm(data); setShowQR(false); showNotify("Lot Found!"); }} />
                </div>

@@ -1354,7 +1354,7 @@ const SettingsPanel = ({ masterData, setMasterData, showNotify, user: currentUse
             <Trash2 size={48} />
           </div>
           <div className="text-center md:text-left flex-1">
-            <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-4">ডেঞ্জার জোন ! <span className="underline decoration-4 underline-offset-8 decoration-rose-400">সিস্টেম রিসেট</span></h2>
+            <h2 className="text-4xl font-black uppercase italic tracking-tighter mb-4 text-black dark:text-white">ডেঞ্জার জোন ! <span className="underline decoration-4 underline-offset-8 decoration-rose-400">সিস্টেম রিসেট</span></h2>
             <p className="text-sm font-bold opacity-80 uppercase tracking-widest leading-relaxed">এই সেকশনটি শুধুমাত্র নতুন সিজন বা নতুন কারখানা শুরুর সময় ব্যবহার করবেন। এই বাটনে ক্লিক করলে আপনার সব স্টক, এন্ট্রি এবং ট্রানজ্যাকশন পার্মানেন্টলি ডিলিট হয়ে যাবে।</p>
           </div>
         </div>

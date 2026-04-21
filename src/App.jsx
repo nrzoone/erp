@@ -364,7 +364,7 @@ const Sidebar = ({ activePanel, setActivePanel, panelTab, setPanelTab, user, set
             {/* Sidebar Branding */}
             <div className="p-8 flex flex-col items-center">
                 <Logo size="sm" white={isDarkMode} customUrl={masterData.settings?.logo} />
-                <p className="text-[10px] font-bold text-slate-400 mt-4">NRZONE FACTORY</p>
+                <p className="text-[10px] font-bold text-black dark:text-white mt-4 opacity-50 uppercase tracking-widest">NRZONE FACTORY</p>
             </div>
             
             <div className="flex-1 overflow-y-auto px-4 space-y-1">
@@ -381,7 +381,7 @@ const Sidebar = ({ activePanel, setActivePanel, panelTab, setPanelTab, user, set
                         <button
                             key={item.id + (item.tab || "")} 
                             onClick={() => navigate(item.id, item.tab)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${active ? "bg-blue-600 text-white shadow-md" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900"}`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${active ? "bg-blue-600 text-white shadow-md" : "text-black dark:text-white hover:bg-slate-50 dark:hover:bg-slate-900"}`}
                         >
                             <Icon size={18} />
                             <span className="text-sm font-bold">{item.label}</span>
@@ -399,7 +399,7 @@ const Sidebar = ({ activePanel, setActivePanel, panelTab, setPanelTab, user, set
                     className="w-full flex items-center gap-3 p-3 rounded-xl text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all font-bold text-sm"
                 >
                     <LogOut size={18} />
-                    <span>লগআউট (Logout)</span>
+                    <span>লগআউট (LOGOUT)</span>
                 </button>
             </div>
         </aside>
@@ -656,15 +656,15 @@ const AppContent = () => {
                                 >
                                     <Menu size={20} />
                                 </button>
-                                <h2 className="text-lg font-bold">
+                                <h2 className="text-lg font-black uppercase tracking-tight text-black dark:text-white">
                                     {activePanel}
                                 </h2>
                             </div>
 
                             <div className="flex items-center gap-4">
                                 <div className="hidden sm:block text-right">
-                                    <p className="text-xs font-bold">{user?.name || "User"}</p>
-                                    <p className="text-[10px] text-slate-400 uppercase">{user?.role}</p>
+                                    <p className="text-xs font-black uppercase tracking-tight text-black dark:text-white">{user?.name || "User"}</p>
+                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">{user?.role}</p>
                                 </div>
                                 <button 
                                     onClick={() => setIsDarkMode(!isDarkMode)}

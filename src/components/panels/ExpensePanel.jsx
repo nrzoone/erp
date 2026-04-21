@@ -27,6 +27,7 @@ import {
    Database
 } from "lucide-react";
 import NRZLogo from "../NRZLogo";
+import UniversalSlip from "../UniversalSlip";
 
 const ExpensePanel = ({
    masterData,
@@ -48,6 +49,7 @@ const ExpensePanel = ({
    const [searchTerm, setSearchTerm] = useState("");
    const [selectedClientLedger, setSelectedClientLedger] = useState(null);
    const [showPrint, setShowPrint] = useState(false);
+   const [printSlip, setPrintSlip] = useState(null);
    const [activeTab, setActiveTab] = useState(initialTab || "treasury");
    const [cashSubTab, setCashSubTab] = useState("daily");
    const [summaryDate, setSummaryDate] = useState(new Date().toISOString().split("T")[0]);
@@ -109,31 +111,33 @@ const ExpensePanel = ({
       showNotify("ক্যাশ এন্টি মুছে ফেলা হয়েছে!");
    };
 
-   const handleAddExpense = (e) => {
-      e.preventDefault();
-      const f = e.target;
+   const handleAddExpense = (e, shouldPrint = false) => {
+      if (e) e.preventDefault();
+      const f = e.target.form || e.target;
       const newExp = { id: "EXP-" + Date.now(), date: f.date.value, category: f.category.value, description: f.description.value, amount: Number(f.amount.value) };
       setMasterData((prev) => ({ ...prev, expenses: [newExp, ...(prev.expenses || [])] }));
       logAction(user, 'EXPENSE_ADD', `Added expense: ${newExp.description} (৳${newExp.amount})`);
+      if (shouldPrint) setPrintSlip({ ...newExp, type: 'EXPENSE' });
       f.reset();
       setCashSubTab("daily");
       showNotify("নতুন খরচ সফলভাবে যোগ করা হয়েছে!");
    };
 
-   const handleAddCash = (e) => {
-      e.preventDefault();
-      const f = e.target;
+   const handleAddCash = (e, shouldPrint = false) => {
+      if (e) e.preventDefault();
+      const f = e.target.form || e.target;
       const newCash = { id: "CASH-" + Date.now(), date: f.date.value, description: f.description.value, amount: Number(f.amount.value) };
       setMasterData((prev) => ({ ...prev, cashEntries: [newCash, ...(prev.cashEntries || [])] }));
       logAction(user, 'CASH_ADD', `Added cash injection: ${newCash.description} (৳${newCash.amount})`);
+      if (shouldPrint) setPrintSlip({ ...newCash, type: 'PAYMENT' });
       f.reset();
       setCashSubTab("all");
       showNotify("ক্যাশ-ইন সফলভাবে যোগ করা হয়েছে!");
    };
 
-   const handleReceiveClientPayment = (e) => {
-      e.preventDefault();
-      const f = e.target;
+   const handleReceiveClientPayment = (e, shouldPrint = false) => {
+      if (e) e.preventDefault();
+      const f = e.target.form || e.target;
       const amt = Number(f.amount.value);
       if (amt <= 0) return;
       const client = receivePaymentModal;
@@ -148,9 +152,27 @@ const ExpensePanel = ({
          cashEntries: [cash, ...(prev.cashEntries || [])]
       }));
       logAction(user, 'CLIENT_PAYMENT_RECEIVE', `Received ৳${amt} from ${client}`);
+      if (shouldPrint) setPrintSlip({ ...txn, type: 'PAYMENT' });
       setReceivePaymentModal(null);
       showNotify(`${client} থেকে ৳${amt.toLocaleString()} পেমেন্ট ফাণ্ডে যুক্ত করা হয়েছে!`);
    };
+
+   if (printSlip) {
+      return (
+         <div className="min-h-screen bg-white p-10 font-outfit italic animate-fade-up">
+            <style>{`@media print { .no-print { display: none !important; } }`}</style>
+            <div className="no-print flex justify-between items-center mb-10 max-w-5xl mx-auto">
+               <button onClick={() => setPrintSlip(null)} className="px-8 py-4 bg-slate-50 rounded-2xl font-black uppercase text-[10px] hover:bg-black hover:text-white transition-all">Cancel</button>
+               <button onClick={() => window.print()} className="px-12 py-4 bg-slate-950 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-xl flex items-center gap-3"><Printer size={18} /> Print Voucher</button>
+            </div>
+            <div className="w-[210mm] mx-auto bg-white border border-slate-100 shadow-2xl p-1 relative">
+               <UniversalSlip data={printSlip} type={printSlip.type} copyTitle="RECIPIENT COPY" SafeText={SafeText} />
+               <div className="h-4 border-t-2 border-dashed border-slate-300 my-10"></div>
+               <UniversalSlip data={printSlip} type={printSlip.type} copyTitle="OFFICE COPY" SafeText={SafeText} />
+            </div>
+         </div>
+      );
+   }
 
    if (showPrint) {
       return (
@@ -158,7 +180,7 @@ const ExpensePanel = ({
             <style>{`@media print { .no-print { display: none !important; } @page { margin: 10mm; size: A4 portrait; } }`}</style>
             <div className="max-w-4xl mx-auto space-y-12">
                <div className="no-print flex justify-between items-center bg-slate-50 p-10 rounded-[2.5rem] shadow-xl border-2 border-slate-100">
-                  <div className="space-y-1"><h2 className="text-3xl font-black italic">FINANCIAL AUDIT</h2><p className="text-[10px] font-bold opacity-40 tracking-widest uppercase">Verified Factory Liquidity Report</p></div>
+                  <div className="space-y-1"><h2 className="text-3xl font-black italic text-black dark:text-white">FINANCIAL AUDIT</h2><p className="text-[10px] font-bold opacity-40 tracking-widest uppercase">Verified Factory Liquidity Report</p></div>
                   <div className="flex gap-4"><button onClick={() => setShowPrint(false)} className="px-10 py-5 bg-white border-4 border-slate-200 rounded-2xl text-[11px] font-black uppercase tracking-widest">CANCEL</button><button onClick={() => window.print()} className="px-12 py-5 bg-slate-950 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest shadow-2xl flex items-center gap-3"><Printer size={18} /> PRINT RECORD</button></div>
                </div>
                <div className="border-[15px] border-black p-16 rounded-[4rem] relative overflow-hidden bg-white shadow-4xl text-black">
@@ -293,7 +315,10 @@ const ExpensePanel = ({
                )}
 
                {(cashSubTab === 'new' || cashSubTab === 'cashIn') && (
-                  <div className="flex justify-center"><form onSubmit={cashSubTab === 'new' ? handleAddExpense : handleAddCash} className="saas-card w-full max-w-2xl !p-12 space-y-8 animate-fade-up border-[10px] border-slate-50 dark:border-slate-800 shadow-2xl relative overflow-hidden italic bg-white dark:bg-slate-900"><div className="text-center space-y-4"><div className={`mx-auto w-20 h-20 text-white rounded-[2rem] flex items-center justify-center shadow-xl rotate-12 mb-6 animate-bounce ${cashSubTab === 'new' ? 'bg-rose-600' : 'bg-emerald-600'}`}>{cashSubTab === 'new' ? <TrendingDown size={32} /> : <TrendingUp size={32} />}</div><h3 className="text-4xl font-black text-black dark:text-white uppercase italic leading-none tracking-tighter">{cashSubTab === 'new' ? 'CONSUMPTION' : 'INJECTION'}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic leading-none">{cashSubTab === 'new' ? 'Operational Burn Sequence' : 'Capital Growth Protocol'}</p></div><div className="grid grid-cols-2 gap-6">{cashSubTab === 'new' && <div className="space-y-4"><label className="text-[11px] font-black text-slate-400 ml-6 uppercase italic tracking-widest leading-none">Category Node</label><select name="category" className="premium-input !h-14 !text-xs font-black uppercase italic bg-slate-50 dark:bg-slate-800 rounded-xl shadow-inner text-black dark:text-white" required>{["teaSnacks", "transport", "material", "utilities", "salary", "bonus", "others"].map(c => <option key={c} value={c}>{t(c)}</option>)}</select></div>}<div className="space-y-4"><label className="text-[11px] font-black text-slate-400 ml-6 uppercase italic tracking-widest leading-none">Timeline Protocol</label><input name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="premium-input !h-14 !bg-slate-950 !text-white !border-none text-center rounded-xl shadow-lg text-sm" required /></div></div><div className="space-y-4"><label className="text-[11px] font-black text-slate-400 ml-6 uppercase italic tracking-widest leading-none">Memo Registry</label><input name="description" placeholder="ENTER TRANSACTION METADATA..." className="premium-input !h-14 !text-xs font-bold italic uppercase bg-slate-50 dark:bg-slate-800 rounded-xl shadow-inner text-black dark:text-white" required /></div><div className="bg-slate-950 p-12 rounded-[3rem] shadow-xl text-center relative overflow-hidden"><div className="absolute top-0 right-0 p-8 opacity-10 text-white"><DollarSign size={100} /></div><label className="text-[11px] font-black text-white/30 uppercase tracking-widest mb-6 block italic leading-none">LIQUIDITY VALUE</label><div className="flex items-center justify-center text-white"><span className="text-4xl font-black text-white/20 mr-6 italic">৳</span><input name="amount" type="number" placeholder="0" className="w-full text-center text-7xl font-black bg-transparent border-none text-white outline-none leading-none h-24 italic tracking-tighter" required autoFocus /></div></div><button type="submit" className={`w-full py-8 rounded-[2rem] shadow-xl border-b-8 transition-all text-2xl font-black uppercase italic active:scale-95 leading-none ${cashSubTab === 'new' ? 'bg-rose-600 border-rose-900 text-white' : 'bg-emerald-600 border-emerald-900 text-white'}`}>{cashSubTab === 'new' ? 'EXECUTE BURN' : 'COMMIT CAPITAL'}</button></form></div>
+                  <div className="flex justify-center"><form onSubmit={cashSubTab === 'new' ? handleAddExpense : handleAddCash} className="saas-card w-full max-w-2xl !p-12 space-y-8 animate-fade-up border-[10px] border-slate-50 dark:border-slate-800 shadow-2xl relative overflow-hidden italic bg-white dark:bg-slate-900"><div className="text-center space-y-4"><div className={`mx-auto w-20 h-20 text-white rounded-[2rem] flex items-center justify-center shadow-xl rotate-12 mb-6 animate-bounce ${cashSubTab === 'new' ? 'bg-rose-600' : 'bg-emerald-600'}`}>{cashSubTab === 'new' ? <TrendingDown size={32} /> : <TrendingUp size={32} />}</div><h3 className="text-4xl font-black text-black dark:text-white uppercase italic leading-none tracking-tighter">{cashSubTab === 'new' ? 'CONSUMPTION' : 'INJECTION'}</h3><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic leading-none">{cashSubTab === 'new' ? 'Operational Burn Sequence' : 'Capital Growth Protocol'}</p></div><div className="grid grid-cols-2 gap-6">{cashSubTab === 'new' && <div className="space-y-4"><label className="text-[11px] font-black text-slate-400 ml-6 uppercase italic tracking-widest leading-none">Category Node</label><select name="category" className="premium-input !h-14 !text-xs font-black uppercase italic bg-slate-50 dark:bg-slate-800 rounded-xl shadow-inner text-black dark:text-white" required>{["teaSnacks", "transport", "material", "utilities", "salary", "bonus", "others"].map(c => <option key={c} value={c}>{t(c)}</option>)}</select></div>}<div className="space-y-4"><label className="text-[11px] font-black text-slate-400 ml-6 uppercase italic tracking-widest leading-none">Timeline Protocol</label><input name="date" type="date" defaultValue={new Date().toISOString().split('T')[0]} className="premium-input !h-14 !bg-slate-950 !text-white !border-none text-center rounded-xl shadow-lg text-sm" required /></div></div><div className="space-y-4"><label className="text-[11px] font-black text-slate-400 ml-6 uppercase italic tracking-widest leading-none">Memo Registry</label><input name="description" placeholder="ENTER TRANSACTION METADATA..." className="premium-input !h-14 !text-xs font-bold italic uppercase bg-slate-50 dark:bg-slate-800 rounded-xl shadow-inner text-black dark:text-white" required /></div><div className="bg-slate-950 p-12 rounded-[3rem] shadow-xl text-center relative overflow-hidden"><div className="absolute top-0 right-0 p-8 opacity-10 text-white"><DollarSign size={100} /></div><label className="text-[11px] font-black text-white/30 uppercase tracking-widest mb-6 block italic leading-none">LIQUIDITY VALUE</label><div className="flex items-center justify-center text-white"><span className="text-4xl font-black text-white/20 mr-6 italic">৳</span><input name="amount" type="number" placeholder="0" className="w-full text-center text-7xl font-black bg-transparent border-none text-white outline-none leading-none h-24 italic tracking-tighter" required autoFocus /></div></div><div className="flex gap-4">
+   <button type="button" onClick={(e) => cashSubTab === 'new' ? handleAddExpense(e, false) : handleAddCash(e, false)} className={`flex-1 py-8 rounded-[2rem] shadow-xl border-b-8 transition-all text-xl font-black uppercase italic active:scale-95 leading-none ${cashSubTab === 'new' ? 'bg-rose-600 border-rose-900 text-white' : 'bg-emerald-600 border-emerald-900 text-white'}`}>সংরক্ষণ করুন (SAVE ONLY)</button>
+   <button type="button" onClick={(e) => cashSubTab === 'new' ? handleAddExpense(e, true) : handleAddCash(e, true)} className="flex-[2] py-8 bg-slate-950 text-white rounded-[2rem] border-b-8 border-black shadow-xl text-xl font-black uppercase italic flex items-center justify-center gap-4 active:scale-95 transition-all"><Printer size={24} /> সংরক্ষণ ও প্রিন্ট (PRINT)</button>
+</div></form></div>
                )}
             </div>
          )}
@@ -335,7 +360,7 @@ const ExpensePanel = ({
             <div className="animate-fade-up">
                <div className="bg-slate-950 p-10 rounded-[3rem] text-white shadow-2xl relative overflow-hidden group mb-10">
                   <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:scale-110 transition-transform"><UserCheck size={160} /></div>
-                  <h2 className="text-4xl font-black tracking-tighter italic uppercase mb-2">Centralized Disbursement</h2>
+                  <h2 className="text-4xl font-black tracking-tighter italic uppercase mb-2 text-black dark:text-white">Centralized Disbursement</h2>
                   <p className="text-[11px] font-black text-white/40 uppercase tracking-[0.5em] italic">Pay any worker from any department instantly</p>
                </div>
                <div className="py-20 text-center opacity-20 italic font-black uppercase tracking-widest">Workforce Ledger moved to individual factories</div>
@@ -438,7 +463,11 @@ const ExpensePanel = ({
                   <form onSubmit={handleReceiveClientPayment} className="space-y-12">
                      <div className="bg-slate-950 p-12 rounded-[3.5rem] shadow-xl text-center relative overflow-hidden"><div className="absolute top-0 right-0 p-10 opacity-10 text-white"><TrendingUp size={160} /></div><label className="text-[13px] font-black text-white/30 uppercase tracking-widest mb-10 block italic leading-none">LIQUID DEPOSIT VALUE</label><div className="flex items-center justify-center text-white"><span className="text-5xl font-black text-white/20 mr-8 italic">৳</span><input name="amount" type="number" placeholder="0" className="w-full text-center text-8xl font-black bg-transparent border-none text-white outline-none leading-none h-28 italic tracking-tighter" required autoFocus /></div></div>
                      <div className="space-y-4"><label className="text-[11px] font-black text-slate-400 ml-10 uppercase italic tracking-widest font-mono italic leading-none">Deposit Authorization Memo</label><input name="note" placeholder="E.G. NEFT / RTGS / PHYSICAL CASH NODES" className="premium-input !h-16 !p-6 uppercase text-[10px] font-black bg-slate-50 dark:bg-slate-800 text-center rounded-2xl shadow-inner text-black dark:text-white" required /></div>
-                     <div className="flex gap-4 pt-8"><button type="button" onClick={() => setReceivePaymentModal(null)} className="flex-1 py-10 rounded-[2.5rem] font-bold uppercase text-[11px] tracking-widest text-slate-400 hover:text-black transition-all italic leading-none">ABORT</button><button type="submit" className="flex-[4] py-10 bg-emerald-600 text-white rounded-[2.5rem] shadow-xl font-black uppercase text-[11px] tracking-widest border-b-12 border-emerald-900 active:scale-95 transition-all italic leading-none">AUTHORIZE CAPITAL DEPOSIT</button></div>
+                     <div className="flex gap-4 pt-8">
+                         <button type="button" onClick={() => setReceivePaymentModal(null)} className="flex-1 py-10 rounded-[2.5rem] font-bold uppercase text-[11px] tracking-widest text-slate-400 hover:text-black transition-all italic leading-none">ABORT</button>
+                         <button type="button" onClick={(e) => handleReceiveClientPayment(e, false)} className="flex-[2] py-10 bg-emerald-600 text-white rounded-[2.5rem] shadow-xl font-black uppercase text-[11px] tracking-widest border-b-12 border-emerald-900 active:scale-95 transition-all italic leading-none">সংরক্ষণ (SAVE)</button>
+                         <button type="button" onClick={(e) => handleReceiveClientPayment(e, true)} className="flex-[3] py-10 bg-slate-950 text-white rounded-[2.5rem] shadow-xl font-black uppercase text-[11px] tracking-widest border-b-12 border-black active:scale-95 transition-all italic leading-none flex items-center justify-center gap-3"><Printer size={20} /> সংরক্ষণ ও প্রিন্ট (PRINT)</button>
+                      </div>
                   </form>
                </div>
             </div>

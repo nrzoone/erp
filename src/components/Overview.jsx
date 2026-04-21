@@ -28,7 +28,7 @@ const StatCard = ({ label, value, icon: Icon, color, sub }) => (
         <div className="relative z-10">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 italic">{label}</p>
             <h2 className="text-4xl font-black tracking-tighter text-black dark:text-white leading-none italic">{value}</h2>
-            {sub && <p className="text-[9px] font-bold text-slate-500 mt-2 uppercase tracking-widest">{sub}</p>}
+            {sub && <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-2 uppercase tracking-widest">{sub}</p>}
         </div>
     </div>
 );
@@ -88,7 +88,7 @@ const Overview = ({ masterData, setActivePanel, setPanelTab, SafeText }) => {
             <div className="space-y-8">
                 <div className="flex items-center gap-4 ml-4">
                     <div className="w-2 h-8 bg-blue-600 rounded-full"></div>
-                    <h3 className="text-2xl font-black uppercase tracking-tight italic">System Modules <span className="opacity-20">/ Gateway</span></h3>
+                    <h3 className="text-2xl font-black uppercase tracking-tight italic text-black dark:text-white">System Modules <span className="opacity-20">/ Gateway</span></h3>
                 </div>
                 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">

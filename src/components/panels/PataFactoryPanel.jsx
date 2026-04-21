@@ -524,7 +524,7 @@ const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActi
                         <button onClick={() => setLedgerModal(false)} className="absolute top-10 right-10 text-slate-400 z-10"><X size={32} /></button>
                         <div className="flex justify-between items-start mb-10">
                            <div>
-                              <h2 className="text-4xl font-black uppercase italic tracking-tighter leading-none">PATA WORKER <span className="text-blue-600">LEDGER</span></h2>
+                              <h2 className="text-4xl font-black uppercase italic tracking-tighter leading-none text-black dark:text-white">PATA WORKER <span className="text-blue-600">LEDGER</span></h2>
                               <p className="text-[10px] font-black uppercase text-slate-400 mt-2 tracking-widest italic">Total workforce synchronized balance</p>
                            </div>
                            {selectedWorkerLedger && (
@@ -591,14 +591,25 @@ const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActi
                     <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
                         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3rem] shadow-2xl p-12 relative border-4 border-slate-50">
                             <button onClick={() => setShowModal(false)} className="absolute top-10 right-10 text-slate-400 hover:text-black"><X size={32} /></button>
-                            <h2 className="text-3xl font-black uppercase italic mb-10 text-center">নতুন পাতা কাজ <span className="text-blue-600">ইস্যু করুন</span></h2>
+                            <h2 className="text-3xl font-black uppercase italic mb-10 text-center text-black dark:text-white">নতুন পাতা কাজ <span className="text-blue-600">ইস্যু করুন</span></h2>
                             
                             <div className="bg-blue-600/5 p-8 rounded-[2.5rem] border border-blue-500/10 mb-8 flex flex-col md:flex-row items-center gap-6">
                                 <div className="flex-1 w-full space-y-2">
                                     <label className="text-[10px] font-black uppercase text-blue-600 tracking-widest ml-4">মাস্টার লট সিন্ক্রোনাইজ করুন (SCAN/SEARCH)</label>
-                                    <div className="relative">
-                                        <Search size={20} className="absolute left-8 top-1/2 -translate-y-1/2 text-blue-600" />
-                                        <input className="premium-input !h-16 !pl-20 !text-xl !font-black !bg-white border-blue-200" placeholder="ENTER LOT NO..." value={lotSearch} onChange={(e) => handleLotSearch(e.target.value)} />
+                                    <div className="relative flex gap-4">
+                                        <div className="relative flex-1">
+                                            <Search size={20} className="absolute left-8 top-1/2 -translate-y-1/2 text-blue-600" />
+                                            <input className="premium-input !h-16 !pl-20 !text-xl !font-black !bg-white dark:!bg-slate-800 dark:text-white border-blue-200" placeholder="লট নম্বর দিয়ে খুঁজুন (SEARCH LOT)..." value={lotSearch} onChange={(e) => handleLotSearch(e.target.value)} />
+                                        </div>
+                                        <button 
+                                            onClick={() => {
+                                                setLotSearch('');
+                                                setEntryData(p => ({ ...p, lotNo: nextPataLotNo, design: '', client: 'FACTORY' }));
+                                            }}
+                                            className="px-8 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] italic shadow-lg hover:bg-black transition-all"
+                                        >
+                                            অটো লট (AUTO)
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -615,7 +626,14 @@ const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActi
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="text-[10px] font-black uppercase text-slate-400 ml-4">ডিজাইন</label>
-                                            <input className="premium-input !h-14 font-black uppercase" value={entryData.design} onChange={(e) => setEntryData(p => ({ ...p, design: e.target.value }))} placeholder="DESIGN..." />
+                                            <select 
+                                                className="premium-input !h-14 font-black uppercase" 
+                                                value={entryData.design} 
+                                                onChange={(e) => setEntryData(p => ({ ...p, design: e.target.value }))}
+                                            >
+                                                <option value="">ডিজাইন নির্বাচন করুন...</option>
+                                                {(masterData.designs || []).map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
+                                            </select>
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-black uppercase text-blue-600 ml-4">পাতা লট (Auto Hisab)</label>
@@ -631,7 +649,7 @@ const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActi
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-black uppercase text-slate-400 ml-4">পরিমাণ (PCS)</label>
-                                            <input type="number" className="premium-input !h-14 font-black text-center" value={entryData.pataQty} onChange={(e) => setEntryData(p => ({ ...p, pataQty: e.target.value }))} placeholder="0" />
+                                            <input type="number" className="premium-input !h-14 font-black text-center dark:bg-slate-800 dark:text-white" value={entryData.pataQty} onChange={(e) => setEntryData(p => ({ ...p, pataQty: e.target.value }))} placeholder="0" />
                                         </div>
                                     </div>
                                     <div className="pt-2">
@@ -661,7 +679,12 @@ const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActi
                                     <textarea className="premium-input !h-32 pt-4 font-black uppercase italic" placeholder="SPECIAL INSTRUCTIONS / NOTES..." value={entryData.note} onChange={(e) => setEntryData(p => ({ ...p, note: e.target.value }))} />
                                 </div>
                             </div>
-                            <button onClick={() => handleSaveIssue(false)} className="w-full mt-10 py-6 bg-slate-950 text-white rounded-[2.5rem] font-black uppercase text-[11px] tracking-widest italic shadow-2xl hover:bg-black transition-all">নিশ্চিত করুন (ISSUE TASK)</button>
+                            <div className="flex gap-4 mt-10">
+                                <button onClick={() => handleSaveIssue(false)} className="flex-1 py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase text-[11px] tracking-widest italic shadow-2xl hover:bg-blue-700 transition-all">সংরক্ষণ করুন (SAVE)</button>
+                                <button onClick={() => handleSaveIssue(true)} className="flex-[2] py-6 bg-slate-950 text-white rounded-[2.5rem] font-black uppercase text-[11px] tracking-widest italic shadow-2xl hover:bg-black transition-all flex items-center justify-center gap-3">
+                                    <Printer size={24} /> সংরক্ষণ ও প্রিন্ট (PRINT)
+                                </button>
+                            </div>
                         </motion.div>
                     </div>
                 )}
@@ -670,7 +693,7 @@ const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActi
                     <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
                          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3.5rem] shadow-2xl p-12 relative border-4 border-slate-50">
                              <button onClick={() => setReceiveModal(null)} className="absolute top-10 right-10 text-slate-400"><X size={32} /></button>
-                             <h2 className="text-2xl font-black uppercase italic mb-8 text-center">{receiveModal.worker} <span className="text-emerald-500">জমা দিন</span></h2>
+                             <h2 className="text-2xl font-black uppercase italic mb-8 text-center text-black dark:text-white">{receiveModal.worker} <span className="text-emerald-500">জমা দিন</span></h2>
                              <form onSubmit={handleConfirmReceive}>
                                  <div className="p-10 bg-slate-50 dark:bg-slate-800 rounded-[2.5rem] text-center mb-8 border border-white dark:border-slate-700 shadow-inner">
                                      <p className="text-[10px] font-black uppercase text-slate-400 mb-4">জমা দেওয়া পরিমাণ (PCS)</p>
@@ -686,7 +709,7 @@ const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActi
                     <div className="fixed inset-0 z-[1000] bg-slate-950/40 backdrop-blur-md flex items-center justify-center p-4">
                          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3.5rem] shadow-2xl p-12 relative border-4 border-slate-50">
                              <button onClick={() => setPayModal(null)} className="absolute top-10 right-10 text-slate-400"><X size={32} /></button>
-                             <h2 className="text-2xl font-black uppercase italic mb-8 text-center">{payModal} <span className="text-emerald-500">পেমেন্ট</span></h2>
+                             <h2 className="text-2xl font-black uppercase italic mb-8 text-center text-black dark:text-white">{payModal} <span className="text-emerald-500">পেমেন্ট</span></h2>
                              <div className="p-10 bg-slate-50 dark:bg-slate-800 rounded-[2.5rem] text-center mb-8 border border-white dark:border-slate-700 shadow-inner">
                                  <p className="text-[10px] font-black uppercase text-slate-400 mb-4">টাকার পরিমাণ (৳)</p>
                                  <input type="number" className="w-full text-5xl font-black text-center bg-transparent outline-none italic" placeholder="0" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} autoFocus />

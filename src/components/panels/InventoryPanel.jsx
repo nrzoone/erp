@@ -21,7 +21,8 @@ import {
   CheckCircle as ConfirmIcon,
   ChevronRight,
   ShieldCheck,
-  Zap
+  Zap,
+  Users
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { syncToSheet } from "../../utils/syncUtils";
@@ -164,7 +165,7 @@ const InventoryPanel = ({
             <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
           </button>
           <div>
-            <h2 className="text-3xl font-bold tracking-tight text-black dark:text-white dark:text-white uppercase leading-none">
+            <h2 className="text-3xl font-bold tracking-tight text-black dark:text-white uppercase leading-none">
               স্টক <span className="text-blue-600">ম্যাট্রিক্স</span>
             </h2>
             <p className="text-[10px] font-bold text-black dark:text-white dark:text-white uppercase tracking-widest mt-2 italic leading-none">
@@ -633,7 +634,7 @@ const InventoryPanel = ({
             <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[2.5rem] overflow-hidden shadow-2xl relative border-4 border-white/10 italic">
                <button onClick={() => setShowQR(false)} className="absolute top-8 right-8 text-slate-400 z-50"><X size={32} /></button>
                <div className="p-10 text-center">
-                  <h2 className="text-3xl font-black uppercase italic mb-2">SCAN <span className="text-blue-600">INVENTORY</span></h2>
+                  <h2 className="text-3xl font-black uppercase italic mb-2 text-black dark:text-white">SCAN <span className="text-blue-600">INVENTORY</span></h2>
                   <p className="text-[10px] font-black uppercase opacity-40 tracking-widest mb-10">Locate Stock Metrics Instantly</p>
                   <QRScanner onScan={(data) => { setSearchTerm(data); setShowQR(false); showNotify("Found Item!"); }} />
                </div>
