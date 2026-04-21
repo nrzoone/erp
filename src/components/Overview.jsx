@@ -14,7 +14,6 @@ import {
     UserCheck,
     TrendingUp,
     TrendingDown,
-    Activity as ActivityIcon,
     Box,
     Clock
 } from "lucide-react";
@@ -78,7 +77,7 @@ const Overview = ({ masterData, setActivePanel, setPanelTab, SafeText }) => {
 
             {/* 📊 KPI Intelligence Grid */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                <StatCard label="Production Flow" value={`${activeProds + activePata}`} icon={ActivityIcon} color="bg-blue-600" sub="Active Operational Nodes" />
+                <StatCard label="Production Flow" value={`${activeProds + activePata}`} icon={Activity} color="bg-blue-600" sub="Active Operational Nodes" />
                 <StatCard label="Active Force" value={`${totalWorkers}`} icon={Users} color="bg-indigo-600" sub="Personnel Synchronized" />
                 <StatCard label="Daily Burn Rate" value={`৳${todayExp.toLocaleString()}`} icon={TrendingDown} color="bg-rose-600" sub="Expenses Recorded Today" />
                 <StatCard label="Stock Readiness" value={`${(masterData.rawInventory || []).length}`} icon={Box} color="bg-slate-900" sub="Inventory Batches Logged" />
