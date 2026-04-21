@@ -544,7 +544,7 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
                             onClick={() => {
                                 const workerPhone = (masterData.workerDocs || []).find(d => d.name === item.worker)?.phone;
                                 if (!workerPhone) return showNotify("কর্মী ফোন নম্বর পাওয়া যায়নি!", "error");
-                                const msg = `NRZONE UPDATE:\nTask: ${type.toUpperCase()}\nLot: #${item.lotNo}\nModel: ${item.design}\nQty: ${item.issueBorka + item.issueHijab} PCS\nStatus: ${item.status}`;
+                                const msg = `NRZONE UPDATE:\nTask: ${type.toUpperCase()}\nLot: #${item.lotNo}\nModel: ${item.design}\nSize: ${item.size}\nBorka (B): ${item.issueBorka} PCS\nHijab (H): ${item.issueHijab} PCS\nTotal: ${item.issueBorka + item.issueHijab} PCS\nStatus: ${item.status}`;
                                 const intl = workerPhone.replace(/\D/g, "").startsWith("880") ? workerPhone.replace(/\D/g, "") : "880" + workerPhone.replace(/\D/g, "").replace(/^0/, "");
                                 window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, "_blank");
                             }} 

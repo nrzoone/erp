@@ -572,7 +572,7 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
                                 onClick={() => {
                                     const workerPhone = (masterData.workerDocs || []).find(d => d.name === item.worker)?.phone;
                                     if (!workerPhone) return showNotify("কর্মী ফোন নম্বর পাওয়া যায়নি!", "error");
-                                    const msg = `NRZONE UPDATE:\nTask: ${item.task.toUpperCase()}\nModel: ${item.design}\nQty: ${item.borkaQty + item.hijabQty} PCS\nStatus: ${item.status}`;
+                                    const msg = `NRZONE UPDATE:\nTask: ${item.task.toUpperCase()}\nModel: ${item.design}\nSize: ${item.size}\nBorka (B): ${item.borkaQty} PCS\nHijab (H): ${item.hijabQty} PCS\nTotal: ${item.borkaQty + item.hijabQty} PCS\nStatus: ${item.status}`;
                                     const intl = workerPhone.replace(/\D/g, "").startsWith("880") ? workerPhone.replace(/\D/g, "") : "880" + workerPhone.replace(/\D/g, "").replace(/^0/, "");
                                     window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, "_blank");
                                 }} 
