@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React from "react";
 import {
   Package,
   Plus,
@@ -39,16 +39,16 @@ const InventoryPanel = ({
   logAction,
   SafeText
 }) => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [transactionType, setTransactionType] = useState("in"); // 'in' or 'out'
-  const [view, setView] = useState("overview"); // 'overview', 'raw', 'add'
-  const [showQR, setShowQR] = useState(false);
-  const [showAIScan, setShowAIScan] = useState(false);
-  const [identifying, setIdentifying] = useState(false);
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [showModal, setShowModal] = React.useState(false);
+  const [transactionType, setTransactionType] = React.useState("in"); // 'in' or 'out'
+  const [view, setView] = React.useState("overview"); // 'overview', 'raw', 'add'
+  const [showQR, setShowQR] = React.useState(false);
+  const [showAIScan, setShowAIScan] = React.useState(false);
+  const [identifying, setIdentifying] = React.useState(false);
 
   // Preserve calculations
-  const summary = useMemo(() => {
+  const summary = React.useMemo(() => {
     const items = [];
     (masterData.designs || []).forEach((d) => {
       (masterData.colors || []).forEach((c) => {
@@ -63,7 +63,7 @@ const InventoryPanel = ({
     return items;
   }, [masterData]);
 
-  const inventory = useMemo(() => {
+  const inventory = React.useMemo(() => {
     const logs = masterData.rawInventory || [];
     const stock = {};
     logs.forEach((log) => {
@@ -636,7 +636,7 @@ const InventoryPanel = ({
                <div className="p-10 text-center">
                   <h2 className="text-3xl font-black uppercase italic mb-2 text-black dark:text-white">SCAN <span className="text-blue-600">INVENTORY</span></h2>
                   <p className="text-[10px] font-black uppercase opacity-40 tracking-widest mb-10">Locate Stock Metrics Instantly</p>
-                  <QRScanner onScanSuccess={(data) => { setSearchTerm(data); setShowQR(false); showNotify("Found Item!", "success"); }} onClose={() => setShowQR(false)} />
+                  <QRScanner onScanSuccess={(data) => { setSearchTerm(data); setShowQR(false); showNotify("Found Item!", "success"); }} onClose={() => setShowQR(false)} SafeText={SafeText} />
                </div>
             </div>
          </div>
