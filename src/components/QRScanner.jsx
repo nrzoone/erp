@@ -72,42 +72,42 @@ const QRScanner = ({ onScanSuccess, onClose, SafeText }) => {
                 #reader__status_span { font-weight: 900 !important; text-transform: uppercase !important; font-size: 0.6rem !important; }
             `}} />
             
-            <div className="bg-white w-full max-w-lg rounded-[3rem] overflow-hidden shadow-2xl relative border-4 border-white/20">
-                <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-white">
+            <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[3rem] overflow-hidden shadow-2xl relative border-4 border-white/20">
+                <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center">
+                        <div className="w-10 h-10 bg-black dark:bg-blue-600 text-white rounded-xl flex items-center justify-center">
                             <Camera size={20} />
                         </div>
                         <div>
-                            <h2 className="text-xl font-black uppercase italic tracking-tighter">QR Scanner</h2>
-                            <p className="text-[8px] font-black uppercase text-black dark:text-white dark:text-white tracking-widest">NRZO0NE Core Intelligence</p>
+                            <h2 className="text-xl font-black uppercase italic tracking-tighter text-black dark:text-white">QR Scanner</h2>
+                            <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">NRZO0NE Core Intelligence</p>
                         </div>
                     </div>
                     <button 
                         onClick={onClose}
-                        className="p-3 bg-slate-50 rounded-full hover:bg-black hover:text-white transition-all shadow-sm"
+                        className="p-3 bg-slate-50 dark:bg-slate-800 rounded-full hover:bg-black hover:text-white transition-all shadow-sm text-black dark:text-white"
                     >
                         <X size={18} />
                     </button>
                 </div>
 
-                <div className="p-8 bg-slate-50 flex flex-col gap-6">
-                    <div id="reader" className="rounded-3xl overflow-hidden shadow-inner bg-white border-2 border-slate-100" />
+                <div className="p-8 bg-slate-50 dark:bg-slate-950 flex flex-col gap-6">
+                    <div id="reader" className="rounded-3xl overflow-hidden shadow-inner bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800" />
                     
                     <button 
                         onClick={() => setIsBulk(!isBulk)}
-                        className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-3 ${isBulk ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/20' : 'bg-slate-100 text-black dark:text-white dark:text-white hover:text-black'}`}
+                        className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-3 ${isBulk ? 'bg-emerald-500 text-white shadow-xl shadow-emerald-500/20' : 'bg-white dark:bg-slate-800 text-black dark:text-white hover:bg-slate-100 dark:hover:bg-slate-700'}`}
                     >
                         <div className={`w-2 h-2 rounded-full ${isBulk ? 'bg-white animate-pulse' : 'bg-slate-300'}`} />
                         Bulk Batch Mode: {isBulk ? 'ON' : 'OFF'}
                     </button>
                 </div>
 
-                <div className="p-8 bg-white border-t border-slate-50">
+                <div className="p-8 bg-white dark:bg-slate-900 border-t border-slate-50 dark:border-slate-800">
                     <div className="flex items-center justify-between gap-4 mb-6">
                         <div className="flex items-center gap-3">
                             <ShieldAlert size={14} className={isBulk ? "text-emerald-500" : "text-amber-500"} />
-                            <p className="text-[9px] font-black uppercase text-black dark:text-white dark:text-white tracking-widest italic">{isBulk ? "Multiple Scans Active" : "Single Item Session"}</p>
+                            <p className="text-[9px] font-black uppercase text-slate-500 tracking-widest italic">{isBulk ? "Multiple Scans Active" : "Single Item Session"}</p>
                         </div>
                         {isBulk && <span className="text-[10px] font-black text-emerald-500 uppercase">{scannedItems.length} Scanned</span>}
                     </div>

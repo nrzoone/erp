@@ -604,16 +604,16 @@ const InventoryPanel = ({
                                 {identifying ? (
                                     <div className="space-y-8 flex flex-col items-center">
                                         <div className="w-24 h-24 border-[8px] border-slate-200 dark:border-slate-800 border-t-blue-600 rounded-full animate-spin"></div>
-                                        <p className="text-[10px] font-black uppercase text-black dark:text-white dark:text-white tracking-[0.6em] animate-pulse">Scanning Visual Matrices...</p>
+                                        <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">NRZO0NE Core Intelligence</p>
                                     </div>
                                 ) : (
                                     <div className="animate-fade-up text-center space-y-8 p-12">
                                         <div className="flex justify-center"><div className="px-6 py-2 bg-emerald-500/10 text-emerald-500 rounded-full text-[10px] font-black uppercase tracking-[0.3em] border border-emerald-500/20">Protocol Confirmed</div></div>
-                                        <h4 className="text-6xl md:text-8xl font-black italic tracking-tighter uppercase text-black dark:text-white dark:text-white">{masterData.designs?.[0]?.name || 'Unknown Node'}</h4>
-                                        <div className="flex justify-center gap-12 text-black dark:text-white dark:text-white">
-                                            <div><p className="text-[9px] font-black text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 italic">Match Confidence</p><p className="text-3xl font-black">99.2%</p></div>
+                                        <h4 className="text-6xl md:text-8xl font-black italic tracking-tighter uppercase text-black dark:text-white">{masterData.designs?.[0]?.name || 'Unknown Node'}</h4>
+                                        <div className="flex justify-center gap-12 text-black dark:text-white">
+                                            <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Match Confidence</p><p className="text-3xl font-black">99.2%</p></div>
                                             <div className="w-px h-10 bg-slate-200 dark:bg-slate-800"></div>
-                                            <div><p className="text-[9px] font-black text-black dark:text-white dark:text-white uppercase tracking-widest mb-1 italic">Classification</p><p className="text-3xl font-black truncate">PREMIUM SERIES</p></div>
+                                            <div><p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">Classification</p><p className="text-3xl font-black truncate">PREMIUM SERIES</p></div>
                                         </div>
                                     </div>
                                 )}
@@ -623,7 +623,7 @@ const InventoryPanel = ({
                             </div>
                             <div className="absolute top-0 left-0 w-full h-[2px] bg-blue-600 animate-scan shadow-[0_0_20px_blue]"></div>
                         </div>
-                        <p className="mt-12 text-[9px] font-black text-black dark:text-white dark:text-white uppercase tracking-[0.5em] italic leading-none">NRZO0NE Core Vision Architecture v5.0 • Live Stream Active</p>
+                        <p className="mt-12 text-[9px] font-black text-slate-400 uppercase tracking-[0.5em] italic leading-none">NRZO0NE Core Vision Architecture v5.0 • Live Stream Active</p>
                     </div>
                 </div>
             </div>
@@ -636,7 +636,7 @@ const InventoryPanel = ({
                <div className="p-10 text-center">
                   <h2 className="text-3xl font-black uppercase italic mb-2 text-black dark:text-white">SCAN <span className="text-blue-600">INVENTORY</span></h2>
                   <p className="text-[10px] font-black uppercase opacity-40 tracking-widest mb-10">Locate Stock Metrics Instantly</p>
-                  <QRScanner onScan={(data) => { setSearchTerm(data); setShowQR(false); showNotify("Found Item!"); }} />
+                  <QRScanner onScanSuccess={(data) => { setSearchTerm(data); setShowQR(false); showNotify("Found Item!", "success"); }} onClose={() => setShowQR(false)} />
                </div>
             </div>
          </div>
