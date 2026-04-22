@@ -6,7 +6,6 @@ import {
     Scissors,
     Database,
     DollarSign,
-    Wallet,
     Layers,
     Hammer,
     Truck,
@@ -40,7 +39,7 @@ const Overview = ({ masterData, setActivePanel, setPanelTab, SafeText, user }) =
         { label: "পাতা হাব", icon: Package, id: "Pata", sub: "Logistics Hub", color: "bg-emerald-600" },
         { label: "বাইরের কাজ", icon: Truck, id: "Outside", sub: "Outwork Unit", color: "bg-amber-600" },
         { label: "ইনভেন্টরি", icon: Database, id: "Stock", sub: "Raw Stock", color: "bg-slate-900" },
-        { label: "টাকা ও হিসাব", icon: Wallet, id: "Accounts", tab: "treasury", sub: "Treasury Hub", color: "bg-rose-600" },
+        { label: "টাকা ও হিসাব", icon: DollarSign, id: "Accounts", tab: "treasury", sub: "Treasury Hub", color: "bg-rose-600" },
         { label: "হাজিরা প্যানেল", icon: Users, id: "Attendance", sub: "Staff Attendance", color: "bg-orange-600" },
         { label: "সিস্টেম সেটিংস", icon: Settings, id: "Settings", sub: "Config Control", color: "bg-slate-700" },
     ];
