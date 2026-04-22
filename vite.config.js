@@ -12,15 +12,6 @@ export default defineConfig({
     build: {
         outDir: 'dist',
         sourcemap: true,
-        chunkSizeWarningLimit: 1200,
-        rollupOptions: {
-            output: {
-                manualChunks: {
-                    'react-vendor': ['react', 'react-dom'],
-                    'ui-vendor': ['lucide-react', 'recharts'],
-                    'firebase-vendor': ['firebase/app', 'firebase/storage']
-                }
-            }
-        }
+        chunkSizeWarningLimit: 2000
     }
 })
