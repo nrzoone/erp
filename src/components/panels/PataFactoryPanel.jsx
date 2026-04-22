@@ -35,7 +35,7 @@ import { getWorkerBalance } from '../../utils/productionUtils';
 import NRZLogo from '../NRZLogo';
 import WorkerSummary from '../WorkerSummary';
 
-const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActivePanel, t, logAction, SafeText }) => {
+const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActivePanel, t, logAction, SafeText, setTrackingId }) => {
     const role = user?.role?.toLowerCase();
     const isAdmin = role === 'admin';
     const isManager = role === 'manager';
@@ -388,7 +388,7 @@ const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActi
             {/* Control Bar */}
             <div className="bg-white dark:bg-slate-900 p-2 flex flex-col md:flex-row items-center justify-between gap-6 rounded-[2.5rem] border-4 border-slate-50 dark:border-slate-800 shadow-inner">
                 <div className="flex bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-[1.5rem] w-full md:w-auto overflow-x-auto no-scrollbar">
-                    {['active', 'history', 'payments', 'workers'].map(v => (
+                    {['active', 'history', 'payments', 'workers'].filter(v => !isWorker || (v !== 'workers' && v !== 'payments')).map(v => (
                         <button key={v} onClick={() => setView(v)} className={`flex-1 md:flex-none px-8 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${view === v ? 'bg-slate-950 text-white shadow-xl' : 'text-slate-400'}`}>
                             {v === 'active' ? 'চলমান' : v === 'history' ? 'পুরাতন' : v === 'payments' ? 'পেমেন্ট' : 'কারিগর তালিকা'}
                         </button>
@@ -509,7 +509,11 @@ const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActi
                                   </button>
                                   <button onClick={() => setPrintSlip(item)} className="w-16 h-16 bg-white dark:bg-slate-800 border-2 border-transparent hover:border-black rounded-2xl flex items-center justify-center shadow-lg transition-all"><Printer size={24} /></button>
                                   {item.status === 'Pending' ? (
-                                      <button onClick={() => setReceiveModal(item)} className="flex-1 h-16 bg-slate-950 text-white rounded-2xl font-black uppercase tracking-widest italic shadow-xl hover:bg-emerald-500 transition-all">জমা নিন (RECEIVE)</button>
+                                      (isAdmin || isManager) ? (
+                                        <button onClick={() => setReceiveModal(item)} className="flex-1 h-16 bg-slate-950 text-white rounded-2xl font-black uppercase tracking-widest italic shadow-xl hover:bg-emerald-500 transition-all">জমা নিন (RECEIVE)</button>
+                                      ) : (
+                                        <div className="flex-1 h-16 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center font-black uppercase text-[9px] tracking-widest italic border border-slate-200">PENDING...</div>
+                                      )
                                   ) : (
                                       <div className="flex-1 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-black uppercase text-[10px] tracking-widest italic border border-emerald-100">RECEIVED {item.receiveDate}</div>
                                   )}
@@ -723,7 +727,17 @@ const PataFactoryPanel = ({ masterData, setMasterData, showNotify, user, setActi
                     </div>
                 )}
                 
-                {showQR && <QRScanner onScanSuccess={(data) => { handleLotSearch(data); setShowQR(false); }} onClose={() => setShowQR(false)} />}
+                {showQR && (
+                  <QRScanner 
+                    onScanSuccess={(data) => { 
+                      handleLotSearch(data); 
+                      setShowQR(false); 
+                      if (setTrackingId) setTrackingId(data);
+                    }} 
+                    onClose={() => setShowQR(false)} 
+                    SafeText={SafeText}
+                  />
+                )}
             </AnimatePresence>
 
             {/* Return Button */}

@@ -26,7 +26,7 @@ import QRScanner from '../QRScanner';
 import UniversalSlip from '../UniversalSlip';
 import WorkerSummary from '../WorkerSummary';
 
-const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActivePanel, t, logAction, SafeText }) => {
+const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActivePanel, t, logAction, SafeText, setTrackingId }) => {
     const [showModal, setShowModal] = useState(false);
     const [view, setView] = useState('active'); // 'active', 'history', 'workers'
     const [searchTerm, setSearchTerm] = useState('');
@@ -370,7 +370,7 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
             {/* Control Bar */}
             <div className="bg-white dark:bg-slate-900 p-2 flex flex-col md:flex-row items-center justify-between gap-6 rounded-[2rem] border-4 border-slate-50 dark:border-slate-800 shadow-inner">
                 <div className="flex bg-slate-50 dark:bg-slate-800/50 p-1.5 rounded-2xl w-full md:w-auto overflow-x-auto no-scrollbar gap-2">
-                    {['active', 'history', 'workers'].map(v => (
+                    {['active', 'history', 'workers'].filter(v => !isWorker || v !== 'workers').map(v => (
                         <button
                             key={v}
                             onClick={() => setView(v)}
@@ -584,9 +584,17 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
                                 <Printer size={24} />
                             </button>
                             {item.status === 'Pending' ? (
-                                <button onClick={() => setReceiveModal({ ...item, rBorkaQty: item.borkaQty, rHijabQty: item.hijabQty, receiveDate: new Date().toISOString().split('T')[0] })} className="flex-1 h-16 bg-slate-950 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest italic shadow-xl">কাজ জমা নিন</button>
+                                (isAdmin || isManager) ? (
+                                    <button onClick={() => setReceiveModal({ ...item, rBorkaQty: item.borkaQty, rHijabQty: item.hijabQty, receiveDate: new Date().toISOString().split('T')[0] })} className="flex-1 h-16 bg-slate-950 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest italic shadow-xl">কাজ জমা নিন</button>
+                                ) : (
+                                    <div className="flex-1 h-16 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center font-black uppercase text-[9px] tracking-widest italic border border-slate-200">PENDING...</div>
+                                )
                             ) : (
-                                <button onClick={() => setPayModal(item)} className="flex-1 h-16 bg-emerald-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest italic shadow-xl">পেমেন্ট দিন</button>
+                                (isAdmin || isManager) ? (
+                                    <button onClick={() => setPayModal(item)} className="flex-1 h-16 bg-emerald-500 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest italic shadow-xl">পেমেন্ট দিন</button>
+                                ) : (
+                                    <div className="flex-1 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-black uppercase text-[10px] tracking-widest italic border border-emerald-100">RECEIVED</div>
+                                )
                             )}
                             {isAdmin && (
                                 <button onClick={() => handleDelete(item.id)} className="w-16 h-16 bg-rose-500 text-white rounded-2xl flex items-center justify-center shadow-xl">
@@ -626,6 +634,18 @@ const OutsideWorkPanel = ({ masterData, setMasterData, showNotify, user, setActi
                             <button onClick={handlePayment} className="w-full py-6 bg-emerald-500 text-white rounded-[2rem] font-black uppercase tracking-widest italic shadow-xl">কনফার্ম পেমেন্ট</button>
                         </motion.div>
                     </div>
+                )}
+                {showQR && (
+                    <QRScanner 
+                        onScanSuccess={(id) => { 
+                            setLotSearch(id); 
+                            handleLotSearch(id);
+                            setShowQR(false); 
+                            if (setTrackingId) setTrackingId(id);
+                        }} 
+                        onClose={() => setShowQR(false)} 
+                        SafeText={SafeText} 
+                    />
                 )}
             </AnimatePresence>
 

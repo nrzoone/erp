@@ -41,6 +41,11 @@ const CuttingPanel = ({
   logAction,
   SafeText,
 }) => {
+  const role = user?.role?.toLowerCase();
+  const isAdmin = role === "admin";
+  const isManager = role === "manager";
+  const isWorker = role !== "admin" && role !== "manager";
+
   const [activeTab, setActiveTab] = useState("Cutting Queue"); // Cutting Queue, History
 
   const [showModal, setShowModal] = useState(false);
@@ -285,7 +290,7 @@ const CuttingPanel = ({
           ))}
         </div>
 
-        <div className="flex items-center gap-3 w-full lg:w-auto px-4">
+          <div className="flex items-center gap-3 w-full lg:w-auto px-4">
           <button onClick={() => setShowQR(true)} className="w-11 h-11 bg-blue-600 text-white rounded-xl shadow-lg flex items-center justify-center hover:bg-black transition-all">
             <Camera size={18} />
           </button>
@@ -298,12 +303,14 @@ const CuttingPanel = ({
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <button 
-             onClick={() => setShowModal(true)}
-             className="w-11 h-11 bg-slate-950 text-white rounded-xl shadow-lg flex items-center justify-center hover:bg-black transition-all"
-          >
-            <Plus size={18} />
-          </button>
+          {(isAdmin || isManager) && (
+            <button 
+               onClick={() => setShowModal(true)}
+               className="w-11 h-11 bg-slate-950 text-white rounded-xl shadow-lg flex items-center justify-center hover:bg-black transition-all"
+            >
+              <Plus size={18} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -315,9 +322,10 @@ const CuttingPanel = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {(masterData.cuttingStock || [])
               .filter(item => 
-                item.lotNo?.toString().includes(searchTerm) || 
+                (!isWorker || item.cutterName?.toLowerCase() === user?.name?.toLowerCase()) &&
+                (item.lotNo?.toString().includes(searchTerm) || 
                 item.design?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                item.color?.toLowerCase().includes(searchTerm.toLowerCase())
+                item.color?.toLowerCase().includes(searchTerm.toLowerCase()))
               ).length === 0 ? (
                 <div className="col-span-full h-80 flex flex-col items-center justify-center bg-white dark:bg-slate-900 rounded-xl border-2 border-dashed border-slate-100 dark:border-slate-800 italic">
                     <Box size={40} className="text-slate-200 mb-4" />
@@ -326,9 +334,10 @@ const CuttingPanel = ({
               ) : (
                 (masterData.cuttingStock || [])
                   .filter(item => 
-                    item.lotNo?.toString().includes(searchTerm) || 
+                    (!isWorker || item.cutterName?.toLowerCase() === user?.name?.toLowerCase()) &&
+                    (item.lotNo?.toString().includes(searchTerm) || 
                     item.design?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                    item.color?.toLowerCase().includes(searchTerm.toLowerCase())
+                    item.color?.toLowerCase().includes(searchTerm.toLowerCase()))
                   ).map((item, idx) => (
                     <div key={item.id || idx} className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl shadow-sm hover:border-slate-950 transition-all flex flex-col group animate-fade-up">
                         <div className="p-6 space-y-6 flex-1">
@@ -375,12 +384,14 @@ const CuttingPanel = ({
                             <button onClick={() => setPrintSlip(item)} className="w-11 h-11 bg-white dark:bg-slate-900 rounded-xl flex items-center justify-center text-black dark:text-white hover:bg-slate-950 hover:text-white transition-all shadow-sm border border-slate-200 dark:border-slate-700" title="স্লিপ প্রিন্ট">
                                 <Printer size={16} />
                             </button>
-                            <button 
-                                onClick={() => setActivePanel('Swing')} 
-                                className="flex-1 bg-slate-950 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all font-bold"
-                            >
-                                সুইং এ পাঠান (Swing)
-                            </button>
+                            {(isAdmin || isManager) && (
+                                <button 
+                                    onClick={() => setActivePanel('Swing')} 
+                                    className="flex-1 bg-slate-950 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all font-bold"
+                                >
+                                    সুইং এ পাঠান (Swing)
+                                </button>
+                            )}
                             {user?.role?.toLowerCase() === 'admin' && (
                                 <button 
                                     onClick={() => handleDelete(item.id)} 

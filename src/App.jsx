@@ -371,8 +371,8 @@ const Sidebar = ({ activePanel, setActivePanel, panelTab, setPanelTab, user, set
                 {MENU_CATEGORIES[0].items.filter(item => {
                     const role = user?.role?.toLowerCase();
                     if (role === 'admin') return true;
-                    if (role === 'manager') return !['Security', 'History'].includes(item.id);
-                    if (role === 'worker') return ['Overview', 'Attendance'].includes(item.id);
+                    if (role === 'manager') return !['Security', 'Settings'].includes(item.id);
+                    if (role === 'worker') return ['Overview', 'Attendance', 'Cutting', 'Swing', 'Stone', 'Pata', 'Outside'].includes(item.id);
                     return false;
                 }).map(item => {
                     const Icon = item.icon;
@@ -684,10 +684,10 @@ const AppContent = () => {
                                 }>
                                     {activePanel === "Overview" && <Overview masterData={masterData} user={user} setActivePanel={setActivePanel} setPanelTab={setPanelTab} t={t} syncStatus={syncStatus} SafeText={SafeText} />}
                                 {activePanel === "Cutting" && <CuttingPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} logAction={logAction} setActivePanel={setActivePanel} t={t} SafeText={SafeText} />}
-                                {activePanel === "Swing" && <FactoryPanel type="sewing" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
-                                {activePanel === "Stone" && <FactoryPanel type="stone" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
-                                {activePanel === "Pata" && <PataFactoryPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
-                                {activePanel === "Outside" && <OutsideWorkPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
+                                {activePanel === "Swing" && <FactoryPanel type="sewing" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} setTrackingId={setTrackingId} />}
+                                {activePanel === "Stone" && <FactoryPanel type="stone" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} setTrackingId={setTrackingId} />}
+                                {activePanel === "Pata" && <PataFactoryPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} setTrackingId={setTrackingId} />}
+                                {activePanel === "Outside" && <OutsideWorkPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} setTrackingId={setTrackingId} />}
                                 {activePanel === "Stock" && <InventoryPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} setActivePanel={setActivePanel} logAction={logAction} SafeText={SafeText} />}
                                 {activePanel === "Accounts" && <ExpensePanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} setActivePanel={setActivePanel} logAction={logAction} onSyncGoogle={handleSyncToGoogleSheets} initialTab={panelTab} logs={logs} SafeText={SafeText} />}
                                 {activePanel === "Attendance" && <AttendancePanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}

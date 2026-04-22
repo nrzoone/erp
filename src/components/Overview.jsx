@@ -48,16 +48,24 @@ const Overview = ({ masterData, setActivePanel, setPanelTab, SafeText, user }) =
     const visibleMenuItems = menuItems.filter(item => {
         const role = user?.role?.toLowerCase();
         if (role === 'admin') return true;
-        if (role === 'manager') return !['Security', 'History'].includes(item.id);
-        if (role === 'worker') return ['Overview', 'Attendance'].includes(item.id);
+        if (role === 'manager') return !['Security', 'Settings'].includes(item.id);
+        if (role === 'worker') return ['Overview', 'Attendance', 'Cutting', 'Swing', 'Stone', 'Pata', 'Outside'].includes(item.id);
         return false;
     });
 
+    const isWorker = user?.role?.toLowerCase() === 'worker';
     const todayStr = new Date().toLocaleDateString('en-GB');
     const todayExp = (masterData.expenses || []).filter(e => e.date === todayStr).reduce((a,b)=>a+b.amount, 0);
-    const activeProds = (masterData.productions || []).filter(p => p.status === 'Pending').length;
-    const activePata = (masterData.pataEntries || []).filter(p => p.status === 'Pending').length;
-    const totalWorkers = (masterData.workerDocs || []).length;
+    
+    const activeProds = (masterData.productions || [])
+        .filter(p => p.status === 'Pending' && (!isWorker || p.worker?.toLowerCase() === user?.name?.toLowerCase()))
+        .length;
+    
+    const activePata = (masterData.pataEntries || [])
+        .filter(p => p.status === 'Pending' && (!isWorker || p.worker?.toLowerCase() === user?.name?.toLowerCase()))
+        .length;
+
+    const totalWorkers = isWorker ? 1 : (masterData.workerDocs || []).length;
 
     return (
         <div className="space-y-12 pb-24 animate-fade-in no-scrollbar italic font-outfit">

@@ -34,7 +34,7 @@ import { getPataStockItem } from "../../utils/calculations";
 import { getWorkerBalance } from "../../utils/productionUtils";
 import NRZLogo from "../NRZLogo";
 
-const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setActivePanel, t, logAction, SafeText }) => {
+const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setActivePanel, t, logAction, SafeText, setTrackingId }) => {
   const [view, setView] = useState("active");
   const [lotSearch, setLotSearch] = useState("");
   const [showIssueModal, setShowIssueModal] = useState(false);
@@ -76,10 +76,12 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
   }, [masterData.productions, type, isWorker, user, lotSearch]);
 
   const workersList = useMemo(() => {
-    return Array.from(new Set((masterData.workerDocs || [])
+    const list = Array.from(new Set((masterData.workerDocs || [])
       .filter(d => d.dept === type)
       .map(d => d.name)));
-  }, [masterData.workerDocs, type]);
+    if (isWorker) return list.filter(n => n.toLowerCase() === user?.name?.toLowerCase());
+    return list;
+  }, [masterData.workerDocs, type, isWorker, user]);
 
   const totalDue = useMemo(() => {
     return workersList.reduce((sum, name) => sum + getWorkerBalance(masterData, name, type).balance, 0);
@@ -462,7 +464,7 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
 
       <div className="bg-white dark:bg-slate-900 p-1.5 flex flex-col md:flex-row items-center justify-between gap-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm mb-6">
           <div className="flex bg-slate-50 dark:bg-slate-800/50 p-1 rounded-xl w-full md:w-auto overflow-x-auto no-scrollbar gap-1">
-              {['active', 'history', 'workers'].map(v => (
+              {['active', 'history', 'workers'].filter(v => !isWorker || v !== 'workers').map(v => (
                   <button key={v} onClick={() => setView(v)} className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${view === v ? 'bg-slate-950 text-white shadow-md' : 'text-slate-400 hover:text-black'}`}>
                       {v === 'active' ? 'চলমান' : v === 'history' ? 'পুরাতন' : 'কারিগর তালিকা'}
                   </button>
@@ -491,13 +493,48 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {activeEntries.length === 0 ? (
+        {view === 'workers' ? (
+          workersList.map(name => {
+            const bal = getWorkerBalance(masterData, name, type);
+            return (
+              <div key={name} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm hover:border-blue-600 transition-all group relative overflow-hidden flex flex-col justify-between min-h-[200px]">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-500">
+                    <User size={24} />
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 italic">BALANCE</p>
+                    <p className="text-xl font-black italic tracking-tighter text-emerald-600">৳{bal.balance.toLocaleString()}</p>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-lg font-black uppercase italic truncate mb-1">{name}</h4>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{type} operator</p>
+                </div>
+                <div className="mt-6 flex gap-2">
+                  <button 
+                    onClick={() => { setSelectedWorkerLedger(name); setLedgerModal(true); }}
+                    className="flex-1 h-10 bg-slate-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest italic flex items-center justify-center gap-2"
+                  >
+                    লেজার (LEDGER)
+                  </button>
+                  <button 
+                    onClick={() => setPayModal(name)}
+                    className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                  >
+                    <DollarSign size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        ) : (view === 'active' ? activeEntries : historyEntries).length === 0 ? (
           <div className="col-span-full py-24 text-center bg-slate-50 dark:bg-slate-800 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700">
              <Archive size={48} className="mx-auto text-slate-200 mb-4" />
-             <p className="text-xs font-black uppercase opacity-20 italic">No active production nodes</p>
+             <p className="text-xs font-black uppercase opacity-20 italic">No {view} production nodes</p>
           </div>
         ) : (
-          activeEntries.map(item => (
+          (view === 'active' ? activeEntries : historyEntries).map(item => (
             <div key={item.id} className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-6 shadow-sm hover:border-blue-600 transition-all group relative overflow-hidden flex flex-col justify-between">
               <div>
                   <div className="flex justify-between items-start mb-6">
@@ -568,8 +605,10 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
                       const stoneReceived = stoneEntry?.status === 'Received';
                       
                       if (!item.sentToStone) {
-                        return (
+                        return (isAdmin || isManager) ? (
                           <button onClick={() => { setReceiveState({ rBorka: item.issueBorka, rHijab: item.issueHijab, penalty: 0, date: new Date().toISOString().split("T")[0] }); setReceiveModal({ ...item, isSendingToStone: true }); }} className="flex-1 h-12 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest italic shadow-lg hover:bg-blue-700 transition-all">পাথরে পাঠান (SEND)</button>
+                        ) : (
+                          <div className="flex-1 h-12 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center font-black uppercase text-[8px] tracking-widest italic border border-slate-200">READY FOR STONE</div>
                         );
                       }
                       if (!stoneReceived) {
@@ -581,8 +620,10 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
                         );
                       }
                     }
-                    return (
+                    return (isAdmin || isManager) ? (
                       <button onClick={() => { setReceiveState({ rBorka: item.receivedBorka || item.issueBorka, rHijab: item.receivedHijab || item.issueHijab, penalty: 0, date: new Date().toISOString().split("T")[0] }); setReceiveModal(item); }} className="flex-1 h-12 bg-slate-950 text-white rounded-xl font-black uppercase text-[10px] tracking-widest italic shadow-lg hover:bg-emerald-600 transition-all">জমা নিন (REC)</button>
+                    ) : (
+                      <div className="flex-1 h-12 bg-slate-100 text-slate-400 rounded-xl flex items-center justify-center font-black uppercase text-[8px] tracking-widest italic border border-slate-200">PENDING RECEIVE</div>
                     );
                   })()
                 ) : (
@@ -848,6 +889,17 @@ const FactoryPanel = ({ type, masterData, setMasterData, showNotify, user, setAc
                 </div>
              </motion.div>
           </div>
+        )}
+        {showQR && (
+          <QRScanner 
+            onScanSuccess={(id) => { 
+                setLotSearch(id); 
+                setShowQR(false); 
+                if (setTrackingId) setTrackingId(id);
+            }} 
+            onClose={() => setShowQR(false)} 
+            SafeText={SafeText} 
+          />
         )}
       </AnimatePresence>
     </div>
