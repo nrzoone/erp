@@ -17,12 +17,14 @@ const firebaseConfig = {
 // Initialize Firebase with safety check
 let app;
 try {
-    if (!firebaseConfig.apiKey) {
-        console.error("Firebase API Key is missing! (ফায়ারবেস এপিআই কী পাওয়া যায়নি)");
+    if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "undefined") {
+        console.error("❌ CRITICAL: Firebase API Key is missing or invalid!");
+    } else {
+        console.log("🔥 Initializing Firebase...");
+        app = initializeApp(firebaseConfig);
     }
-    app = initializeApp(firebaseConfig);
 } catch (error) {
-    console.error("Firebase initialization failed:", error);
+    console.error("❌ Firebase initialization failed:", error);
 }
 
 // Initialize Services

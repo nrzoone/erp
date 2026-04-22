@@ -8,44 +8,136 @@
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NRZOONE - Women's Clothing & Factory ERP</title>
+    <!-- Professional Typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+    <!-- On-screen error reporter to debug white screen -->
     <script>
-      window.onerror = function(msg, url, line, col, error) {
-          const errDiv = document.createElement('div');
-          errDiv.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:black;color:#ff4d4d;padding:40px;z-index:99999;font-family:monospace;overflow:auto;line-height:1.6;";
-          errDiv.innerHTML = `
-              <div style="max-width:800px;margin:auto;">
-                  <h1 style="font-size:40px;border-bottom:2px solid #ff4d4d;padding-bottom:20px;margin-bottom:30px;">💥 CRITICAL BOOT FAILURE</h1>
-                  <div style="background:#1a1a1a;padding:30px;border-radius:20px;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
-                      <p style="color:#ff9999;font-weight:bold;margin-bottom:20px;">[ERROR MESSAGE]</p>
-                      <p style="margin-bottom:30px;font-size:18px;">${msg}</p>
-                      <p style="color:#ff9999;font-weight:bold;margin-bottom:10px;">[LOCATION]</p>
-                      <p style="margin-bottom:30px;">File: ${url}<br>Line: ${line}:${col}</p>
-                      <p style="color:#ff9999;font-weight:bold;margin-bottom:10px;">[STACK TRACE]</p>
-                      <pre style="background:#000;padding:20px;border-radius:10px;font-size:12px;color:#ccc;white-space:pre-wrap;">${error?.stack || 'N/A'}</pre>
-                  </div>
-                  <div style="margin-top:40px;text-align:center;">
-                      <button onclick='location.reload()' style='padding:15px 40px;background:#ff4d4d;color:white;border:none;border-radius:15px;cursor:pointer;font-weight:bold;font-size:16px;'>RETRY BOOT</button>
-                  </div>
-              </div>
-          `;
-          document.body.appendChild(errDiv);
-          return false;
+      // Global Emergency Shield v3.0 - Silencing AbortErrors and Benign Noise
+      const silenceBenign = (event) => {
+        const error = event.error || event.reason || event;
+        const msg = String(error?.message || error?.code || error || "").toLowerCase();
+        
+        const isBenign = /abort|cancelled|user aborted|timeout|fetching|resizeobserver|script error/i.test(msg);
+        
+        if (isBenign) {
+          if (event.preventDefault) event.preventDefault();
+          if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+          return true;
+        }
       };
-      window.addEventListener('unhandledrejection', (event) => {
-          const reason = event.reason || 'Unknown Rejection';
-          window.onerror(String(reason.message || reason), 'N/A', 0, 0, reason);
-      });
+
+      window.addEventListener('error', silenceBenign, true);
+      window.addEventListener('unhandledrejection', silenceBenign, true);
+      
+      // Fallback for older browsers or specific promise implementations
+      window.onerror = (m) => /abort|cancelled|user aborted/i.test(String(m));
+      window.onunhandledrejection = (e) => /abort|cancelled|user aborted/i.test(String(e.reason));
+    </script>
+    <!-- Meta Pixel Code -->
+    <script>
+      !(function (f, b, e, v, n, t, s) {
+        if (f.fbq) return;
+        n = f.fbq = function () {
+          n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+        };
+        if (!f._fbq) f._fbq = n;
+        n.push = n;
+        n.loaded = !0;
+        n.version = '2.0';
+        n.queue = [];
+        t = b.createElement(e);
+        t.async = !0;
+        t.src = v;
+        s = b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t, s);
+      })(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '517991158551582');
+      fbq('track', 'PageView');
     </script>
   </head>
   <body>
+    <script>
+      console.log("🛠️ HTML LOADING... (চেকিং: এইচটিএমএল লোড হচ্ছে)");
+      window.addEventListener('load', () => {
+         console.log("✅ WINDOW LOADED (উইন্ডো লোড হয়েছে)");
+         
+         // Diagnostic: Check if React mounted after 8 seconds
+         setTimeout(() => {
+            const root = document.getElementById('root');
+            if (root && (root.innerText.includes('SYNCHRONIZING') || root.innerText.trim() === '')) {
+               console.error("❌ JS BUNDLE FAILED TO START (জেএস বান্ডেল চালু হয়নি)");
+               
+               // Show emergency recovery UI
+               const recoveryUI = document.createElement('div');
+               recoveryUI.style.cssText = "position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);color:white;padding:20px;border-radius:20px;text-align:center;z-index:10000;border:1px solid #333;box-shadow:0 10px 50px rgba(0,0,0,0.5);font-family:sans-serif;width:90%;max-width:400px;";
+               recoveryUI.innerHTML = `
+                  <p style="margin:0 0 15px 0;font-size:12px;font-weight:bold;color:#ff4d4f;">SYSTEM BOOT STALL DETECTED</p>
+                  <p style="margin:0 0 20px 0;font-size:11px;opacity:0.7;">The application is taking too long to start. This might be due to corrupted local data.</p>
+                  <button id="recovery-btn" style="width:100%;padding:12px;background:#fff;color:#000;border:none;border-radius:10px;font-weight:bold;cursor:pointer;margin-bottom:10px;">PURGE CACHE & RELOAD</button>
+                  <button id="skip-recovery" style="background:transparent;color:#666;border:none;font-size:10px;cursor:pointer;">CONTINUE WAITING</button>
+               `;
+               document.body.appendChild(recoveryUI);
+               
+               document.getElementById('recovery-btn').onclick = () => {
+                  localStorage.clear();
+                  window.location.reload();
+               };
+               document.getElementById('skip-recovery').onclick = () => {
+                  recoveryUI.style.display = 'none';
+               };
+            }
+         }, 8000);
+      });
+    </script>
+    <noscript>
+      <img
+        height="1"
+        width="1"
+        style="display:none"
+        src="https://www.facebook.com/tr?id=517991158551582&ev=PageView&noscript=1"
+      />
+    </noscript>
     <div id="root">
-      <div style="height:100vh;display:flex;align-items:center;justify-content:center;background:white;font-family:Outfit;font-style:italic;font-weight:900;letter-spacing:-0.05em;color:black;">
+      <div class="boot-screen">
         SYNCHRONIZING NEURAL LINK...
       </div>
     </div>
+    <script type="module">
+      window.addEventListener('error', (e) => {
+        if (!/abort|resizeobserver|cancelled/i.test(e.message)) {
+          console.log("CRITICAL ERROR DURING BOOT:", e.message);
+          // alert("ERROR: " + e.message + "\nFile: " + e.filename + "\nLine: " + e.lineno);
+        }
+      });
+      window.onerror = function(msg, url, line, col, error) {
+         if (!/abort|resizeobserver|cancelled/i.test(msg)) {
+            const errDiv = document.createElement('div');
+            errDiv.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:black;color:red;padding:50px;z-index:99999;font-family:monospace;overflow:auto;";
+            errDiv.innerHTML = "<h1>💥 CRITICAL SYSTEM FAULT 💥</h1>" +
+                               "<p>Message: " + msg + "</p>" +
+                               "<p>File: " + url + "</p>" +
+                               "<p>Line: " + line + "</p>" +
+                               "<p>Stack: " + (error?.stack || 'N/A') + "</p>" +
+                               "<button onclick='location.reload()' style='padding:10px 20px;background:white;color:black;border:none;border-radius:10px;cursor:pointer;'>RETRY BOOT</button>";
+            document.body.appendChild(errDiv);
+         }
+         return false;
+      };
+    </script>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Professional PWA Registration to enable App Installation
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('✅ NRZONE App Node: Online/Stable (' + reg.scope + ')');
+          }).catch(err => {
+            console.error('❌ App Registry Failed:', err);
+          });
+        });
+      }
+    </script>
   </body>
 </html>

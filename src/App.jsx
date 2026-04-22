@@ -364,15 +364,15 @@ const Sidebar = ({ activePanel, setActivePanel, panelTab, setPanelTab, user, set
             {/* Sidebar Branding */}
             <div className="p-8 flex flex-col items-center">
                 <Logo size="sm" white={isDarkMode} customUrl={masterData.settings?.logo} />
-                <p className="text-[10px] font-bold text-black dark:text-white mt-4 opacity-50 uppercase tracking-widest">NRZONE FACTORY</p>
+                <p className="text-[10px] font-bold text-slate-400 mt-4">NRZONE FACTORY</p>
             </div>
             
             <div className="flex-1 overflow-y-auto px-4 space-y-1">
                 {MENU_CATEGORIES[0].items.filter(item => {
                     const role = user?.role?.toLowerCase();
                     if (role === 'admin') return true;
-                    if (role === 'manager') return !['Security', 'Settings'].includes(item.id);
-                    if (role === 'worker') return ['Overview', 'Attendance', 'Cutting', 'Swing', 'Stone', 'Pata', 'Outside'].includes(item.id);
+                    if (role === 'manager') return !['Security', 'History'].includes(item.id);
+                    if (role === 'worker') return (item.id === 'Accounts' && item.tab === 'workforce');
                     return false;
                 }).map(item => {
                     const Icon = item.icon;
@@ -381,7 +381,7 @@ const Sidebar = ({ activePanel, setActivePanel, panelTab, setPanelTab, user, set
                         <button
                             key={item.id + (item.tab || "")} 
                             onClick={() => navigate(item.id, item.tab)}
-                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${active ? "bg-blue-600 text-white shadow-md" : "text-black dark:text-white hover:bg-slate-50 dark:hover:bg-slate-900"}`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${active ? "bg-blue-600 text-white shadow-md" : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900"}`}
                         >
                             <Icon size={18} />
                             <span className="text-sm font-bold">{item.label}</span>
@@ -399,7 +399,7 @@ const Sidebar = ({ activePanel, setActivePanel, panelTab, setPanelTab, user, set
                     className="w-full flex items-center gap-3 p-3 rounded-xl text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all font-bold text-sm"
                 >
                     <LogOut size={18} />
-                    <span>লগআউট (LOGOUT)</span>
+                    <span>লগআউট (Logout)</span>
                 </button>
             </div>
         </aside>
@@ -415,9 +415,11 @@ const AppContent = () => {
     const [user, setUser] = useState(() => {
         try {
             const saved = localStorage.getItem('nrzone_user');
-            return saved ? JSON.parse(saved) : null;
+            if (!saved || saved === "undefined") return null;
+            return JSON.parse(saved);
         } catch (e) {
-            console.error("User storage parse error:", e);
+            console.error("Critical: User session data corrupted:", e);
+            localStorage.removeItem('nrzone_user');
             return null;
         }
     });
@@ -661,15 +663,15 @@ const AppContent = () => {
                                 >
                                     <Menu size={20} />
                                 </button>
-                                <h2 className="text-lg font-black uppercase tracking-tight text-black dark:text-white">
+                                <h2 className="text-lg font-bold">
                                     {activePanel}
                                 </h2>
                             </div>
 
                             <div className="flex items-center gap-4">
                                 <div className="hidden sm:block text-right">
-                                    <p className="text-xs font-black uppercase tracking-tight text-black dark:text-white">{user?.name || "User"}</p>
-                                    <p className="text-[10px] text-slate-400 uppercase font-bold tracking-widest">{user?.role}</p>
+                                    <p className="text-xs font-bold">{user?.name || "User"}</p>
+                                    <p className="text-[10px] text-slate-400 uppercase">{user?.role}</p>
                                 </div>
                                 <button 
                                     onClick={() => setIsDarkMode(!isDarkMode)}
@@ -689,13 +691,14 @@ const AppContent = () => {
                                 }>
                                     {activePanel === "Overview" && <Overview masterData={masterData} user={user} setActivePanel={setActivePanel} setPanelTab={setPanelTab} t={t} syncStatus={syncStatus} SafeText={SafeText} />}
                                 {activePanel === "Cutting" && <CuttingPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} logAction={logAction} setActivePanel={setActivePanel} t={t} SafeText={SafeText} />}
-                                {activePanel === "Swing" && <FactoryPanel type="sewing" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} setTrackingId={setTrackingId} />}
-                                {activePanel === "Stone" && <FactoryPanel type="stone" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} setTrackingId={setTrackingId} />}
-                                {activePanel === "Pata" && <PataFactoryPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} setTrackingId={setTrackingId} />}
-                                {activePanel === "Outside" && <OutsideWorkPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} setTrackingId={setTrackingId} />}
+                                {activePanel === "Swing" && <FactoryPanel type="sewing" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
+                                {activePanel === "Stone" && <FactoryPanel type="stone" masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
+                                {activePanel === "Pata" && <PataFactoryPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
+                                {activePanel === "Outside" && <OutsideWorkPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
                                 {activePanel === "Stock" && <InventoryPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} setActivePanel={setActivePanel} logAction={logAction} SafeText={SafeText} />}
                                 {activePanel === "Accounts" && <ExpensePanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} setActivePanel={setActivePanel} logAction={logAction} onSyncGoogle={handleSyncToGoogleSheets} initialTab={panelTab} logs={logs} SafeText={SafeText} />}
                                 {activePanel === "Attendance" && <AttendancePanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} user={user} t={t} logAction={logAction} setActivePanel={setActivePanel} SafeText={SafeText} />}
+                                {activePanel === "Settings" && <SettingsPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} syncStatus={syncStatus} user={user} t={t} setActivePanel={setActivePanel} logs={logs} downloadBackup={downloadBackup} SafeText={SafeText} />}
                                 {activePanel === "Settings" && <SettingsPanel masterData={masterData} setMasterData={setMasterData} showNotify={showNotify} syncStatus={syncStatus} user={user} t={t} setActivePanel={setActivePanel} logs={logs} downloadBackup={downloadBackup} SafeText={SafeText} />}
                                         {activePanel === "Notifications" && (
                                              <div className="space-y-8 pb-24 animate-fade-up px-2">

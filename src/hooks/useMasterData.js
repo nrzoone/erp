@@ -89,13 +89,18 @@ const LOGS_DOC_ID = "factory_logs_v1";
 export const useMasterData = (user) => {
     const [isLoading, setIsLoading] = useState(true);
     const [masterData, setMasterData] = useState(() => {
-        const saved = localStorage.getItem('nrzone_data');
-        if (saved) {
-            try {
-                return { ...initialData, ...JSON.parse(saved) };
-            } catch (e) {
-                console.error("Local storage parse error:", e);
+        try {
+            const saved = localStorage.getItem('nrzone_data');
+            if (saved && saved !== "undefined") {
+                const parsed = JSON.parse(saved);
+                // Ensure parsed data is an object and has minimum required keys
+                if (parsed && typeof parsed === 'object') {
+                    return { ...initialData, ...parsed };
+                }
             }
+        } catch (e) {
+            console.error("MasterData recovery failed:", e);
+            // Don't clear storage here yet, just fallback to initialData
         }
         return initialData;
     });
